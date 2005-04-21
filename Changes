@@ -1,0 +1,5 @@
+---
+version: 0.10
+date: Wed Apr 20 18:05:42 PDT 2005
+changes:
+- Initial version of Test::Chunks

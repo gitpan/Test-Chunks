@@ -1,0 +1,76 @@
+NAME
+    Test::Chunks - Chunky Data Driven Testing Support
+
+SYNOPSIS
+        use Test::Chunks -delims => qw(=== +++);
+        use Pod::Simple;
+
+        plan tests => 1 * chunks;
+    
+        for my $chunk (chunks) {
+            diff_is(
+                Pod::Simple::pod_to_html($chunk->pod),
+                $chunk->text,
+                $chunk->description, 
+            );
+        }
+
+        __END__
+        === Header 1 Test
+        +++ pod
+        =head1 The Main Event
+        +++ html
+        <h1>The Main Event</h1>
+        === List Test
+        +++ 
+        =over
+        =item * one
+        =item * two
+        =back
+        +++ html
+        <ul>
+        <li>one</li>
+        <li>two</li>
+        </ul>
+
+DESCRIPTION
+    There are many testing situations where you have a set of inputs and a
+    set of expected outputs and you want to make sure your process turns
+    each input chunk into the corresponding output chunk. Test::Chunks
+    allows you do this with a minimal amount of code.
+
+    Test::Chunks is optimized for input and output chunks that span multiple
+    lines of text.
+
+EXPORTED FUNCTIONS
+    Test::Chunks extends Test::More and exports all of its functions. So you
+    can basically write your tests the same as Test::More. Test::Chunks
+    exports a few more functions though:
+
+  chunks()
+    The most important function is "chunks". In list context it returns a
+    list of "Test::Chunk" objects that are generated from the test
+    specification in the "DATA" section of your test file. In scalar context
+    it returns the number of objects. This is useful to calculate your
+    Test::More plan.
+
+  diff_is()
+    Like Test::More's "is()", but on failure reports a diff of the expected
+    and actual output. This is often very useful when your chunks are large.
+
+TEST SPECIFICATION
+    Test::Chunks allows you to specify your test data in an external file,
+    the DATA section of your program or from a scalar variable containing
+    all the text input.
+
+AUTHOR
+    Brian Ingerson <ingy@cpan.org>
+
+COPYRIGHT
+    Copyright (c) 2005. Brian Ingerson. All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
+    See http://www.perl.com/perl/misc/Artistic.html
+
