@@ -5,19 +5,21 @@ use Test::More;
 
 our @EXPORT = qw(
     plan is ok like is_deeply fail 
-    chunks diff_is
+    chunks delimiters spec_file spec_string filters run
+    diff_is
     WWW XXX YYY ZZZ
 );
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 my $chunk_delim_default = '===';
 my $data_delim_default = '---';
 
 const chunk_class => 'Test::Chunk';
 
-field 'spec_file';
-field 'spec_string';
+field '_spec_file';
+field '_spec_string';
+field '_filters' => [qw(norm trim)];
 field spec =>
       -init => '$self->spec_init';
 field chunks_list =>
@@ -31,44 +33,91 @@ sub chunk_delim_default { $chunk_delim_default }
 sub data_delim_default { $data_delim_default }
 
 my $default_object = __PACKAGE__->new;
+sub default_object { $default_object }
 
-sub paired_arguments { '-delims' }
-
-# sub import {
-#     super;
-#     my ($args) = $self->parse_arguments(@_);
-#     if (my $delims = $args->{'-delims'}) {
-#         $delims = [$delims, '---'] unless ref $delims;
-#         ($chunk_delim_default, $data_delim_default) = @$delims;
-#     }
-# }
-
-sub chunks {
-    $self ||= $default_object;
+sub chunks() {
+    my $self = ref($_[0])
+    ? shift
+    : $default_object;
     my $chunks = $self->chunks_list;
     return @$chunks;
+}
+
+sub delimiters() {
+    my $self = ref($_[0])
+    ? shift
+    : $default_object;
+    my ($chunk_delimiter, $data_delimiter) = @_;
+    $chunk_delimiter ||= $chunk_delim_default;
+    $data_delimiter ||= $data_delim_default;
+    $self->chunk_delim($chunk_delimiter);
+    $self->data_delim($data_delimiter);
+    return $self;
+}
+
+sub spec_file() {
+    my $self = ref($_[0])
+    ? shift
+    : $default_object;
+    $self->_spec_file(shift);
+    return $self;
+}
+
+sub spec_string() {
+    my $self = ref($_[0])
+    ? shift
+    : $default_object;
+    $self->_spec_string(shift);
+    return $self;
+}
+
+sub filters() {
+    my $self = ref($_[0])
+    ? shift
+    : $default_object;
+    my $filters = $self->_filters;
+    push @$filters, @_;
+    return $self;
+}
+
+sub filter_norm {
+    my $text = shift;
+    $text =~ s/\015\012/\n/g;
+    $text =~ s/\r/\n/g;
+    return $text;
+}
+
+sub filter_chomp {
+    my $text = shift;
+    chomp($text);
+    return $text;
+}
+
+sub filter_trim {
+    my $text = shift;
+    $text =~ s/\A([ \t]*\n)+//;
+    $text =~ s/(\n?)\s*\z/$1/g;
+    return $text;
+}
+
+sub filter_base64 {
+    require MIME::Base64;
+    MIME::Base64::decode_base64(shift);
+}
+
+sub filter_esc {
+    my $text = shift;
+    $text =~ s/(\\.)/eval "qq{$1}"/ge;
+    return $text;
 }
 
 sub chunks_init {
     my $spec = $self->spec;
     my $cd = $self->chunk_delim;
-    my $dd = $self->data_delim;
-    my @hunks = ($spec =~ /^(${cd}.*?(?=^${cd}|\z))/msg);
+    my @hunks = ($spec =~ /^(\Q${cd}\E.*?(?=^\Q${cd}\E|\z))/msg);
     my @chunks;
     for my $hunk (@hunks) {
-        my $chunk = $self->chunk_class->new;
-        $hunk =~ s/\A${cd}[ \t]*(.*)\s+// or die;
-        my $description = $1 || 'No test description';
-        my @parts = split /^${dd}\s+(\w+)\s+/m, $hunk;
-        shift @parts;
-        while (@parts) {
-            my ($type, $text) = splice(@parts, 0, 2);
-            $chunk->set_chunk($type, $text);
-        }
-        for (keys %$chunk) {
-            $chunk->{$_} ||= '';
-        }
-        $chunk->description($description);
+        my $chunk = $self->_make_chunk($hunk);
         return [$chunk]
           if defined $chunk->{ONLY};
         next if defined $chunk->{SKIP};
@@ -77,12 +126,52 @@ sub chunks_init {
     return [@chunks];
 }
 
+sub _make_chunk {
+    my $hunk = shift;
+    my $cd = $self->chunk_delim;
+    my $dd = $self->data_delim;
+    my $chunk = $self->chunk_class->new;
+    $hunk =~ s/\A\Q${cd}\E[ \t]*(.*)\s+// or die;
+    my $description = $1;
+    my @parts = split /^\Q${dd}\E +(\w+) *(.*)?\n/m, $hunk;
+    shift @parts;
+    while (@parts) {
+        my ($type, $filters, $text) = splice(@parts, 0, 3);
+        for my $filter ($self->_get_filters($filters)) {
+            $text = $self->$filter($text);
+        }
+        $chunk->set_chunk($type, $text);
+    }
+    for (keys %$chunk) {
+        $chunk->{$_} ||= '';
+    }
+    $chunk->description($description);
+    return $chunk;
+}
+
+sub _get_filters {
+    my $string = shift;
+    $string =~ s/\s*(.*?)\s*/$1/;
+    my @filters = ();
+    for my $filter (@{$self->_filters}, split /\s+/, $string) {
+        last unless length $filter;
+        if ($filter =~ s/^-//) {
+            @filters = grep { $_ ne $filter } @filters;
+        }
+        else {
+            @filters = grep { $_ ne $filter } @filters;
+            push @filters, $filter;
+        }
+    }
+    return map { "filter_$_" } @filters;
+}
+
 sub spec_init {
-    return $self->spec_string
-      if $self->spec_string;
+    return $self->_spec_string
+      if $self->_spec_string;
     local $/;
     my $spec;
-    if (my $spec_file = $self->spec_file) {
+    if (my $spec_file = $self->_spec_file) {
         open FILE, $spec_file or die $!;
         $spec = <FILE>;
         close FILE;
@@ -95,6 +184,14 @@ sub spec_init {
         };
     }
     return $spec;
+}
+
+sub run(&) {
+    my $self = $default_object;
+    my $callback = shift;
+    for my $chunk ($self->chunks) {
+        &{$callback}($chunk);
+    }
 }
 
 # XXX Dummy implementation for now.
@@ -123,9 +220,13 @@ Test::Chunks - Chunky Data Driven Testing Support
 
 =head1 SYNOPSIS
 
-    use Test::Chunks -delims => qw(=== +++);
+    # Note that this code is conceptual only. Pod::Simple is not so
+    # simple as to provide a simple pod_to_html function.
+
+    use Test::Chunks;
     use Pod::Simple;
 
+    delimiters qw(=== +++);
     plan tests => 1 * chunks;
     
     for my $chunk (chunks) {
@@ -137,17 +238,20 @@ Test::Chunks - Chunky Data Driven Testing Support
     }
 
     __END__
+
     === Header 1 Test
     +++ pod
     =head1 The Main Event
     +++ html
     <h1>The Main Event</h1>
+
     === List Test
-    +++ 
+    +++ pod
     =over
     =item * one
     =item * two
     =back
+
     +++ html
     <ul>
     <li>one</li>
@@ -170,6 +274,17 @@ Test::Chunks extends Test::More and exports all of its functions. So you
 can basically write your tests the same as Test::More. Test::Chunks
 exports a few more functions though:
 
+=head2 run(&subroutine)
+
+The C<run> function takes a subroutine as an argument, and calls the sub one
+time for each chunk in the specification. It passes the current chunk object
+to the sub routine.
+
+    run {
+        my $chunk = shift;
+        is(process($chunk->foo), $chunk->bar, $chunk->description);
+    };
+
 =head2 chunks()
 
 The most important function is C<chunks>. In list context it returns a
@@ -178,16 +293,193 @@ specification in the C<DATA> section of your test file. In scalar
 context it returns the number of objects. This is useful to calculate
 your Test::More plan.
 
+=head2 delimiters($chunk_delimiter, $data_delimiter)
+
+Override the default delimiters of C<===> and C<--->.
+
+=head2 spec_file($file_name)
+
+By default, Test::Chunks reads its input from the DATA section. This
+function tells it to get the spec from a file instead.
+
+=head2 spec_string($test_data)
+
+By default, Test::Chunks reads its input from the DATA section. This
+function tells it to get the spec from a string that has been
+prepared somehow.
+
 =head2 diff_is()
 
 Like Test::More's C<is()>, but on failure reports a diff of the expected
 and actual output. This is often very useful when your chunks are large.
+Requires the Algorithm::Diff module.
+
+=head2 default_object()
+
+Returns the default Test::Chunks object. This is useful if you feel
+the need to do an OO operation in otherwise functional test code. See
+L<OO> below.
+
+=head2 WWW() XXX() YYY() ZZZ()
+
+These debugging functions are exported from the Spiffy.pm module. See
+L<Spiffy> for more info.
 
 =head1 TEST SPECIFICATION
 
-Test::Chunks allows you to specify your test data in an external file, the
-DATA section of your program or from a scalar variable containing all the text
-input.
+Test::Chunks allows you to specify your test data in an external file,
+the DATA section of your program or from a scalar variable containing
+all the text input.
+
+A I<test specification> is a series of text lines. Each test (or chunk)
+is separated by a line containing the chunk delimiter and an optional
+description. Each chunk is further subdivided into named sections with a
+line containing the data delimiter and the data section name.
+
+Here is an example:
+
+    use Test::Chunks;
+    
+    delimiters qw(### :::);
+
+    # test code here
+
+    __END__
+    
+    ### Test One
+    
+    ::: foo
+    a foo line
+    another foo line
+
+    ::: bar
+    a bar line
+    another bar line
+
+    ### Test Two
+    
+    ::: foo
+    some foo line
+    some other foo line
+    
+    ::: bar
+    some bar line
+    some other bar line
+
+    ::: baz
+    some baz line
+    some other baz line
+
+This example specifies two chunks. They both have foo and bar data
+sections. The second chunk has a baz component. The chunk delimiter is
+C<###> and the data delimiter is C<:::>.
+
+The default chunk delimiter is C<===> and the default data delimiter
+is C<--->.
+
+There are two special data section names.
+
+    --- SKIP
+    --- ONLY
+
+A chunk with a SKIP section causes that test to be ignored. This is
+useful to disable a test temporarily.
+
+A chunk with an ONLY section causes only that chunk to be return. This
+is useful when you are concentrating on getting a single test to pass.
+If there is more than one chunk with ONLY, the first one will be chosen.
+
+=head1 FILTERS
+
+Test::Chunks allows you to specify a list of filters. The default
+filters are C<norm> and C<trim>. These filters will be applied (in
+order) to the data after it has been parsed from the specification and
+before it is set into its Test::Chunk object.
+
+You can specify the default filters with the C<filters> function. You
+can specify additional filters to a specific chunk by listing them after
+the section name on a data section delimiter line.
+
+Example:
+
+    use Test::Chunks;
+
+    filters(norm foo bar);
+
+    __END__
+    === Test one
+    --- foo trim chomp upper
+    ...
+    --- bar -norm
+    ...
+
+Putting a C<-> before a filter on a delimiter line, disables that
+filter.
+
+=head2 norm
+
+Normalize the data. Change non-Unix line endings to Unix line endings.
+
+=head2 chomp
+
+Remove the final newline. The newline on the last line.
+
+=head2 trim
+
+Remove extra blank lines from the beginning and end of the data. This
+allows you to visually separate your test data with blank lines.
+
+=head2 base64
+
+Decode base64 data. Useful for binary tests.
+
+=head2 esc
+
+Unescape all backslash escaped chars.
+
+=head2 Rolling Your Own Filters
+
+Creating filter extensions is very simple. Here is a self
+explanatory example:
+
+    use Test::Chunks;
+
+    filters(foo);
+
+    sub Test::Chunks::filter_foo {
+        my $self = shift;
+        my $data = shift;
+        # transform $data in a fooish manner
+        return $data;
+    }    
+
+=head1 OO
+
+Test::Chunks has a nice functional interface for simple usage. Under the
+hood everything is object oriented. A default Test::Chunks object is
+created and all the functions are really just method calls on it.
+
+This means if you need to get fancy, you can use all the object
+oriented stuff too. Just create new Test::Chunk objects and use the
+functions as methods.
+
+    use Test::Chunks;
+    my $chunks1 = Test::Chunks->new;
+    my $chunks2 = Test::Chunks->new;
+
+    $chunks1->delimiters(qw(!!! @@@))->spec_file('test1.txt');
+    $chunks2->delimiters(qw(### $$$))->spec_string($test_data);
+
+    plan tests => $chunks1->chunks + $chunks2->chunks;
+
+    # ... etc
+
+=head1 TODO
+
+* diff_is() just calls is() for now. Need to implement.
+
+* Add a filter_map feature to specify different default filters for
+  different types of data sections.
 
 =head1 AUTHOR
 

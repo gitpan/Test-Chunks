@@ -2,9 +2,13 @@ NAME
     Test::Chunks - Chunky Data Driven Testing Support
 
 SYNOPSIS
-        use Test::Chunks -delims => qw(=== +++);
+        # Note that this code is conceptual only. Pod::Simple is not so
+        # simple as to provide a simple pod_to_html function.
+
+        use Test::Chunks;
         use Pod::Simple;
 
+        delimiters qw(=== +++);
         plan tests => 1 * chunks;
     
         for my $chunk (chunks) {
@@ -16,17 +20,20 @@ SYNOPSIS
         }
 
         __END__
+
         === Header 1 Test
         +++ pod
         =head1 The Main Event
         +++ html
         <h1>The Main Event</h1>
+
         === List Test
-        +++ 
+        +++ pod
         =over
         =item * one
         =item * two
         =back
+
         +++ html
         <ul>
         <li>one</li>
@@ -47,6 +54,16 @@ EXPORTED FUNCTIONS
     can basically write your tests the same as Test::More. Test::Chunks
     exports a few more functions though:
 
+  run(&subroutine)
+    The "run" function takes a subroutine as an argument, and calls the sub
+    one time for each chunk in the specification. It passes the current
+    chunk object to the sub routine.
+
+        run {
+            my $chunk = shift;
+            is(process($chunk->foo), $chunk->bar, $chunk->description);
+        };
+
   chunks()
     The most important function is "chunks". In list context it returns a
     list of "Test::Chunk" objects that are generated from the test
@@ -54,14 +71,176 @@ EXPORTED FUNCTIONS
     it returns the number of objects. This is useful to calculate your
     Test::More plan.
 
+  delimiters($chunk_delimiter, $data_delimiter)
+    Override the default delimiters of "===" and "---".
+
+  spec_file($file_name)
+    By default, Test::Chunks reads its input from the DATA section. This
+    function tells it to get the spec from a file instead.
+
+  spec_string($test_data)
+    By default, Test::Chunks reads its input from the DATA section. This
+    function tells it to get the spec from a string that has been prepared
+    somehow.
+
   diff_is()
     Like Test::More's "is()", but on failure reports a diff of the expected
     and actual output. This is often very useful when your chunks are large.
+    Requires the Algorithm::Diff module.
+
+  default_object()
+    Returns the default Test::Chunks object. This is useful if you feel the
+    need to do an OO operation in otherwise functional test code. See OO
+    below.
+
+  WWW() XXX() YYY() ZZZ()
+    These debugging functions are exported from the Spiffy.pm module. See
+    Spiffy for more info.
 
 TEST SPECIFICATION
     Test::Chunks allows you to specify your test data in an external file,
     the DATA section of your program or from a scalar variable containing
     all the text input.
+
+    A *test specification* is a series of text lines. Each test (or chunk)
+    is separated by a line containing the chunk delimiter and an optional
+    description. Each chunk is further subdivided into named sections with a
+    line containing the data delimiter and the data section name.
+
+    Here is an example:
+
+        use Test::Chunks;
+    
+        delimiters qw(### :::);
+
+        # test code here
+
+        __END__
+    
+        ### Test One
+    
+        ::: foo
+        a foo line
+        another foo line
+
+        ::: bar
+        a bar line
+        another bar line
+
+        ### Test Two
+    
+        ::: foo
+        some foo line
+        some other foo line
+    
+        ::: bar
+        some bar line
+        some other bar line
+
+        ::: baz
+        some baz line
+        some other baz line
+
+    This example specifies two chunks. They both have foo and bar data
+    sections. The second chunk has a baz component. The chunk delimiter is
+    "###" and the data delimiter is ":::".
+
+    The default chunk delimiter is "===" and the default data delimiter is
+    "---".
+
+    There are two special data section names.
+
+        --- SKIP
+        --- ONLY
+
+    A chunk with a SKIP section causes that test to be ignored. This is
+    useful to disable a test temporarily.
+
+    A chunk with an ONLY section causes only that chunk to be return. This
+    is useful when you are concentrating on getting a single test to pass.
+    If there is more than one chunk with ONLY, the first one will be chosen.
+
+FILTERS
+    Test::Chunks allows you to specify a list of filters. The default
+    filters are "norm" and "trim". These filters will be applied (in order)
+    to the data after it has been parsed from the specification and before
+    it is set into its Test::Chunk object.
+
+    You can specify the default filters with the "filters" function. You can
+    specify additional filters to a specific chunk by listing them after the
+    section name on a data section delimiter line.
+
+    Example:
+
+        use Test::Chunks;
+
+        filters(norm foo bar);
+
+        __END__
+        === Test one
+        --- foo trim chomp upper
+        ...
+        --- bar -norm
+        ...
+
+    Putting a "-" before a filter on a delimiter line, disables that filter.
+
+  norm
+    Normalize the data. Change non-Unix line endings to Unix line endings.
+
+  chomp
+    Remove the final newline. The newline on the last line.
+
+  trim
+    Remove extra blank lines from the beginning and end of the data. This
+    allows you to visually separate your test data with blank lines.
+
+  base64
+    Decode base64 data. Useful for binary tests.
+
+  esc
+    Unescape all backslash escaped chars.
+
+  Rolling Your Own Filters
+    Creating filter extensions is very simple. Here is a self explanatory
+    example:
+
+        use Test::Chunks;
+
+        filters(foo);
+
+        sub Test::Chunks::filter_foo {
+            my $self = shift;
+            my $data = shift;
+            # transform $data in a fooish manner
+            return $data;
+        }    
+
+OO
+    Test::Chunks has a nice functional interface for simple usage. Under the
+    hood everything is object oriented. A default Test::Chunks object is
+    created and all the functions are really just method calls on it.
+
+    This means if you need to get fancy, you can use all the object oriented
+    stuff too. Just create new Test::Chunk objects and use the functions as
+    methods.
+
+        use Test::Chunks;
+        my $chunks1 = Test::Chunks->new;
+        my $chunks2 = Test::Chunks->new;
+
+        $chunks1->delimiters(qw(!!! @@@))->spec_file('test1.txt');
+        $chunks2->delimiters(qw(### $$$))->spec_string($test_data);
+
+        plan tests => $chunks1->chunks + $chunks2->chunks;
+
+        # ... etc
+
+TODO
+    * diff_is() just calls is() for now. Need to implement.
+
+    * Add a filter_map feature to specify different default filters for
+    different types of data sections.
 
 AUTHOR
     Brian Ingerson <ingy@cpan.org>

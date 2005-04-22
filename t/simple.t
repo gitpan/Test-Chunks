@@ -1,6 +1,3 @@
-use lib 'lib';
-use strict;
-use warnings;
 use Test::Chunks;
 
 plan tests => 1 * chunks;

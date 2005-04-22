@@ -1,4 +1,12 @@
 ---
+version: 0.11
+date:    Thu Apr 21 11:26:32 PDT 2005
+changes:
+- added delimiters() spec_file() spec_string() filters() functions
+- implemented nice filters system
+- lots more tests
+- finished the doc
+---
 version: 0.10
 date: Wed Apr 20 18:05:42 PDT 2005
 changes:
