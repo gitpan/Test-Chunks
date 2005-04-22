@@ -10,7 +10,12 @@ our @EXPORT = qw(
     WWW XXX YYY ZZZ
 );
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
+
+sub import() {
+    strict_warnings();
+    goto &Spiffy::import;
+}
 
 my $chunk_delim_default = '===';
 my $data_delim_default = '---';
@@ -198,6 +203,29 @@ sub run(&) {
 sub diff_is() {
     require Algorithm::Diff;
     is($_[0], $_[1], (@_ > 1 ? ($_[2]) : ()));
+}
+
+# XXX Copied from Spiffy. Refactor at some point.
+sub strict_warnings() {
+    require Filter::Util::Call;
+    my $done = 0;
+    Filter::Util::Call::filter_add(
+        sub {
+            return 0 if $done;
+            my ($data, $end) = ('', '');
+            while (my $status = Filter::Util::Call::filter_read()) {
+                return $status if $status < 0;
+                if (/^__(?:END|DATA)__\r?$/) {
+                    $end = $_;
+                    last;
+                }
+                $data .= $_;
+                $_ = '';
+            }
+            $_ = "use strict;use warnings;$data$end";
+            $done = 1;
+        }
+    );
 }
 
 package Test::Chunk;
@@ -473,6 +501,15 @@ functions as methods.
     plan tests => $chunks1->chunks + $chunks2->chunks;
 
     # ... etc
+
+=head1 OTHER COOL FEATURES
+
+Test::Chunks automatically adds
+
+    use strict;
+    use warnings;
+
+to all of your test scripts. A Spiffy feature indeed.
 
 =head1 TODO
 

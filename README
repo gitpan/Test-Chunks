@@ -236,6 +236,14 @@ OO
 
         # ... etc
 
+OTHER COOL FEATURES
+    Test::Chunks automatically adds
+
+        use strict;
+        use warnings;
+
+    to all of your test scripts. A Spiffy feature indeed.
+
 TODO
     * diff_is() just calls is() for now. Need to implement.
 

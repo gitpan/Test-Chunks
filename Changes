@@ -1,4 +1,10 @@
 ---
+version: 0.12
+date:    Fri Apr 22 00:12:21 PDT 2005
+changes:
+- finished the tests
+- automagically add strict and warnings to every test script
+---
 version: 0.11
 date:    Thu Apr 21 11:26:32 PDT 2005
 changes:
