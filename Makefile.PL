@@ -9,6 +9,7 @@ version_from('lib/Test/Chunks.pm');
 requires(qw(
     perl 5.6.1
     Spiffy 0.23
+    Test::More 0.54
 ));
 
 check_nmake();

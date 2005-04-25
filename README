@@ -2,9 +2,6 @@ NAME
     Test::Chunks - Chunky Data Driven Testing Support
 
 SYNOPSIS
-        # Note that this code is conceptual only. Pod::Simple is not so
-        # simple as to provide a simple pod_to_html function.
-
         use Test::Chunks;
         use Pod::Simple;
 
@@ -12,6 +9,8 @@ SYNOPSIS
         plan tests => 1 * chunks;
     
         for my $chunk (chunks) {
+            # Note that this code is conceptual only. Pod::Simple is not so
+            # simple as to provide a simple pod_to_html function.
             diff_is(
                 Pod::Simple::pod_to_html($chunk->pod),
                 $chunk->text,
@@ -82,6 +81,22 @@ EXPORTED FUNCTIONS
     By default, Test::Chunks reads its input from the DATA section. This
     function tells it to get the spec from a string that has been prepared
     somehow.
+
+  filters(@filter_list)
+    Specify a list of additional filters to be applied to all chunks. See
+    "FILTERS" below.
+
+  filters_map($hash_ref)
+    This function allows you to specify a hash that maps data section names
+    to an array ref of filters for that data type.
+
+        filters_map({
+            xxx => [qw(chomp lines)],
+            yyy => ['yaml'],
+            zzz => 'eval',
+        });
+
+    If a filters list has only one element, the array ref is optional.
 
   diff_is()
     Like Test::More's "is()", but on failure reports a diff of the expected
@@ -195,6 +210,22 @@ FILTERS
     Remove extra blank lines from the beginning and end of the data. This
     allows you to visually separate your test data with blank lines.
 
+  lines
+    Break the data into an anonymous array of lines. Each line (except
+    possibly the last one if the "chomp" filter came first) will have a
+    newline at the end.
+
+  list
+    Same as the "lines" filter, except all newlines are chomped.
+
+  eval
+    Run Perl's "eval" command against the data and use the returned value as
+    the data.
+
+  yaml
+    Apply the YAML::Load function to the data chunk and use the resultant
+    structure. Requires YAML.pm.
+
   base64
     Decode base64 data. Useful for binary tests.
 
@@ -246,9 +277,6 @@ OTHER COOL FEATURES
 
 TODO
     * diff_is() just calls is() for now. Need to implement.
-
-    * Add a filter_map feature to specify different default filters for
-    different types of data sections.
 
 AUTHOR
     Brian Ingerson <ingy@cpan.org>

@@ -5,12 +5,12 @@ use Test::More;
 
 our @EXPORT = qw(
     plan is ok like is_deeply fail 
-    chunks delimiters spec_file spec_string filters run
+    chunks delimiters spec_file spec_string filters filters_map run
     diff_is
     WWW XXX YYY ZZZ
 );
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 sub import() {
     strict_warnings();
@@ -25,6 +25,7 @@ const chunk_class => 'Test::Chunk';
 field '_spec_file';
 field '_spec_string';
 field '_filters' => [qw(norm trim)];
+field '_filters_map' => {};
 field spec =>
       -init => '$self->spec_init';
 field chunks_list =>
@@ -85,8 +86,16 @@ sub filters() {
     return $self;
 }
 
+sub filters_map() {
+    my $self = ref($_[0]) eq __PACKAGE__
+    ? shift
+    : $default_object;
+    $self->_filters_map(shift || {});
+    return $self;
+}
+
 sub filter_norm {
-    my $text = shift;
+    my $text = shift || '';
     $text =~ s/\015\012/\n/g;
     $text =~ s/\r/\n/g;
     return $text;
@@ -101,7 +110,7 @@ sub filter_chomp {
 sub filter_trim {
     my $text = shift;
     $text =~ s/\A([ \t]*\n)+//;
-    $text =~ s/(\n?)\s*\z/$1/g;
+    $text =~ s/(?<=\n)\s*\z//g;
     return $text;
 }
 
@@ -114,6 +123,30 @@ sub filter_esc {
     my $text = shift;
     $text =~ s/(\\.)/eval "qq{$1}"/ge;
     return $text;
+}
+
+sub filter_eval {
+    return eval(shift);
+}
+
+sub filter_yaml {
+    require YAML;
+    return YAML::Load(shift);
+}
+
+sub filter_lines {
+    my $text = shift;
+    return [] unless length $text;
+    my @lines = ($text =~ /^(.*\n?)/gm);
+    return \@lines;
+}
+
+sub filter_list {
+    return [ 
+        map {
+            chomp; $_
+        } @{$self->filter_lines(shift)}
+    ];
 }
 
 sub chunks_init {
@@ -142,7 +175,7 @@ sub _make_chunk {
     shift @parts;
     while (@parts) {
         my ($type, $filters, $text) = splice(@parts, 0, 3);
-        for my $filter ($self->_get_filters($filters)) {
+        for my $filter ($self->_get_filters($type, $filters)) {
             $text = $self->$filter($text);
         }
         $chunk->set_chunk($type, $text);
@@ -155,10 +188,17 @@ sub _make_chunk {
 }
 
 sub _get_filters {
-    my $string = shift;
+    my $type = shift;
+    my $string = shift || '';
     $string =~ s/\s*(.*?)\s*/$1/;
     my @filters = ();
-    for my $filter (@{$self->_filters}, split /\s+/, $string) {
+    my $map_filters = $self->_filters_map->{$type} || [];
+    $map_filters = [ $map_filters ] unless ref $map_filters;
+    for my $filter (
+        @{$self->_filters}, 
+        @$map_filters,
+        split(/\s+/, $string),
+    ) {
         last unless length $filter;
         if ($filter =~ s/^-//) {
             @filters = grep { $_ ne $filter } @filters;
@@ -248,9 +288,6 @@ Test::Chunks - Chunky Data Driven Testing Support
 
 =head1 SYNOPSIS
 
-    # Note that this code is conceptual only. Pod::Simple is not so
-    # simple as to provide a simple pod_to_html function.
-
     use Test::Chunks;
     use Pod::Simple;
 
@@ -258,6 +295,8 @@ Test::Chunks - Chunky Data Driven Testing Support
     plan tests => 1 * chunks;
     
     for my $chunk (chunks) {
+        # Note that this code is conceptual only. Pod::Simple is not so
+        # simple as to provide a simple pod_to_html function.
         diff_is(
             Pod::Simple::pod_to_html($chunk->pod),
             $chunk->text,
@@ -335,6 +374,24 @@ function tells it to get the spec from a file instead.
 By default, Test::Chunks reads its input from the DATA section. This
 function tells it to get the spec from a string that has been
 prepared somehow.
+
+=head2 filters(@filter_list)
+
+Specify a list of additional filters to be applied to all chunks. See
+C<FILTERS> below.
+
+=head2 filters_map($hash_ref)
+
+This function allows you to specify a hash that maps data section names
+to an array ref of filters for that data type.
+
+    filters_map({
+        xxx => [qw(chomp lines)],
+        yyy => ['yaml'],
+        zzz => 'eval',
+    });
+
+If a filters list has only one element, the array ref is optional.
 
 =head2 diff_is()
 
@@ -457,6 +514,26 @@ Remove the final newline. The newline on the last line.
 Remove extra blank lines from the beginning and end of the data. This
 allows you to visually separate your test data with blank lines.
 
+=head2 lines
+
+Break the data into an anonymous array of lines. Each line (except
+possibly the last one if the C<chomp> filter came first) will have a
+newline at the end.
+
+=head2 list
+
+Same as the C<lines> filter, except all newlines are chomped.
+
+=head2 eval
+
+Run Perl's C<eval> command against the data and use the returned value
+as the data.
+
+=head2 yaml
+
+Apply the YAML::Load function to the data chunk and use the resultant
+structure. Requires YAML.pm.
+
 =head2 base64
 
 Decode base64 data. Useful for binary tests.
@@ -514,9 +591,6 @@ to all of your test scripts. A Spiffy feature indeed.
 =head1 TODO
 
 * diff_is() just calls is() for now. Need to implement.
-
-* Add a filter_map feature to specify different default filters for
-  different types of data sections.
 
 =head1 AUTHOR
 

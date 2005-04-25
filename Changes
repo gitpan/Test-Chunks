@@ -1,4 +1,10 @@
 ---
+version: 0.13
+date:    Mon Apr 25 11:14:27 PDT 2005
+changes:
+- add eval, yaml, list and lines filters
+- support a filter_map for more flexibility
+---
 version: 0.12
 date:    Fri Apr 22 00:12:21 PDT 2005
 changes:
