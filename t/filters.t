@@ -11,7 +11,7 @@ run {
 my ($chunk) = chunks;
 is($chunk->one, "HEY NOW HEY NOW\n");
 
-sub Test::Chunks::filter_upper {
+sub Test::Chunks::Filter::upper {
     my $self = shift;
     return uc(shift);
 }

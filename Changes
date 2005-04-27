@@ -1,4 +1,9 @@
 ---
+version: 0.14
+date:    Wed Apr 27 12:22:45 PDT 2005
+changes:
+- Move filters into the Test::Chunks::Filter class
+---
 version: 0.13
 date:    Mon Apr 25 11:14:27 PDT 2005
 changes:

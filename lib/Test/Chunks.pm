@@ -10,33 +10,34 @@ our @EXPORT = qw(
     WWW XXX YYY ZZZ
 );
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 sub import() {
-    strict_warnings();
+    _strict_warnings();
     goto &Spiffy::import;
 }
 
 my $chunk_delim_default = '===';
 my $data_delim_default = '---';
 
-const chunk_class => 'Test::Chunk';
+field chunk_class => 'Test::Chunk';
+field filter_class => 'Test::Chunks::Filter';
 
 field '_spec_file';
 field '_spec_string';
 field '_filters' => [qw(norm trim)];
 field '_filters_map' => {};
 field spec =>
-      -init => '$self->spec_init';
+      -init => '$self->_spec_init';
 field chunks_list =>
-      -init => '$self->chunks_init';
+      -init => '$self->_chunks_init';
 field chunk_delim =>
-      -init => '$self->chunk_delim_default';
+      -init => '$self->_chunk_delim_default';
 field data_delim =>
-      -init => '$self->data_delim_default';
+      -init => '$self->_data_delim_default';
 
-sub chunk_delim_default { $chunk_delim_default }
-sub data_delim_default { $data_delim_default }
+sub _chunk_delim_default { $chunk_delim_default }
+sub _data_delim_default { $data_delim_default }
 
 my $default_object = __PACKAGE__->new;
 sub default_object { $default_object }
@@ -94,62 +95,21 @@ sub filters_map() {
     return $self;
 }
 
-sub filter_norm {
-    my $text = shift || '';
-    $text =~ s/\015\012/\n/g;
-    $text =~ s/\r/\n/g;
-    return $text;
+sub run(&) {
+    my $self = $default_object;
+    my $callback = shift;
+    for my $chunk ($self->chunks) {
+        &{$callback}($chunk);
+    }
 }
 
-sub filter_chomp {
-    my $text = shift;
-    chomp($text);
-    return $text;
+# XXX Dummy implementation for now.
+sub diff_is() {
+    require Algorithm::Diff;
+    is($_[0], $_[1], (@_ > 1 ? ($_[2]) : ()));
 }
 
-sub filter_trim {
-    my $text = shift;
-    $text =~ s/\A([ \t]*\n)+//;
-    $text =~ s/(?<=\n)\s*\z//g;
-    return $text;
-}
-
-sub filter_base64 {
-    require MIME::Base64;
-    MIME::Base64::decode_base64(shift);
-}
-
-sub filter_esc {
-    my $text = shift;
-    $text =~ s/(\\.)/eval "qq{$1}"/ge;
-    return $text;
-}
-
-sub filter_eval {
-    return eval(shift);
-}
-
-sub filter_yaml {
-    require YAML;
-    return YAML::Load(shift);
-}
-
-sub filter_lines {
-    my $text = shift;
-    return [] unless length $text;
-    my @lines = ($text =~ /^(.*\n?)/gm);
-    return \@lines;
-}
-
-sub filter_list {
-    return [ 
-        map {
-            chomp; $_
-        } @{$self->filter_lines(shift)}
-    ];
-}
-
-sub chunks_init {
+sub _chunks_init {
     my $spec = $self->spec;
     my $cd = $self->chunk_delim;
     my @hunks = ($spec =~ /^(\Q${cd}\E.*?(?=^\Q${cd}\E|\z))/msg);
@@ -176,7 +136,7 @@ sub _make_chunk {
     while (@parts) {
         my ($type, $filters, $text) = splice(@parts, 0, 3);
         for my $filter ($self->_get_filters($type, $filters)) {
-            $text = $self->$filter($text);
+            $text = $self->filter_class->$filter($text);
         }
         $chunk->set_chunk($type, $text);
     }
@@ -208,10 +168,10 @@ sub _get_filters {
             push @filters, $filter;
         }
     }
-    return map { "filter_$_" } @filters;
+    return @filters;
 }
 
-sub spec_init {
+sub _spec_init {
     return $self->_spec_string
       if $self->_spec_string;
     local $/;
@@ -231,22 +191,8 @@ sub spec_init {
     return $spec;
 }
 
-sub run(&) {
-    my $self = $default_object;
-    my $callback = shift;
-    for my $chunk ($self->chunks) {
-        &{$callback}($chunk);
-    }
-}
-
-# XXX Dummy implementation for now.
-sub diff_is() {
-    require Algorithm::Diff;
-    is($_[0], $_[1], (@_ > 1 ? ($_[2]) : ()));
-}
-
 # XXX Copied from Spiffy. Refactor at some point.
-sub strict_warnings() {
+sub _strict_warnings() {
     require Filter::Util::Call;
     my $done = 0;
     Filter::Util::Call::filter_add(
@@ -278,6 +224,63 @@ sub set_chunk {
     field $type
       unless $self->can($type);
     $self->$type($text);
+}
+
+package Test::Chunks::Filter;
+
+sub norm {
+    my $text = shift || '';
+    $text =~ s/\015\012/\n/g;
+    $text =~ s/\r/\n/g;
+    return $text;
+}
+
+sub chomp {
+    my $text = shift;
+    CORE::chomp($text);
+    return $text;
+}
+
+sub trim {
+    my $text = shift;
+    $text =~ s/\A([ \t]*\n)+//;
+    $text =~ s/(?<=\n)\s*\z//g;
+    return $text;
+}
+
+sub base64 {
+    require MIME::Base64;
+    MIME::Base64::decode_base64(shift);
+}
+
+sub esc {
+    my $text = shift;
+    $text =~ s/(\\.)/eval "qq{$1}"/ge;
+    return $text;
+}
+
+sub eval {
+    return CORE::eval(shift);
+}
+
+sub yaml {
+    require YAML;
+    return YAML::Load(shift);
+}
+
+sub lines {
+    my $text = shift;
+    return [] unless length $text;
+    my @lines = ($text =~ /^(.*\n?)/gm);
+    return \@lines;
+}
+
+sub list {
+    return [ 
+        map {
+            CORE::chomp; $_
+        } @{$self->lines(shift)}
+    ];
 }
 
 __DATA__
@@ -551,8 +554,8 @@ explanatory example:
 
     filters(foo);
 
-    sub Test::Chunks::filter_foo {
-        my $self = shift;
+    sub Test::Chunks::Filter::foo {
+        my $class = shift;
         my $data = shift;
         # transform $data in a fooish manner
         return $data;

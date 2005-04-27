@@ -240,8 +240,8 @@ FILTERS
 
         filters(foo);
 
-        sub Test::Chunks::filter_foo {
-            my $self = shift;
+        sub Test::Chunks::Filter::foo {
+            my $class = shift;
             my $data = shift;
             # transform $data in a fooish manner
             return $data;
