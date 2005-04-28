@@ -1,4 +1,10 @@
 ---
+version: 0.15
+date:    Wed Apr 27 23:50:50 PDT 2005
+changes:
+- export everything Test::More does.
+- croak if things get called in the wrong order.
+---
 version: 0.14
 date:    Wed Apr 27 12:22:45 PDT 2005
 changes:

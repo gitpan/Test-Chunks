@@ -4,13 +4,18 @@ use Spiffy -XXX;
 use Test::More;
 
 our @EXPORT = qw(
-    plan is ok like is_deeply fail 
+    ok is isnt like unlike is_deeply cmp_ok
+    skip todo todo_skip pass fail
+    eq_array eq_hash eq_set
+    plan can_ok isa_ok diag
+    $TODO
+
     chunks delimiters spec_file spec_string filters filters_map run
     diff_is
     WWW XXX YYY ZZZ
 );
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 sub import() {
     _strict_warnings();
@@ -42,6 +47,15 @@ sub _data_delim_default { $data_delim_default }
 my $default_object = __PACKAGE__->new;
 sub default_object { $default_object }
 
+sub check_late {
+    if ($self->{chunks_list}) {
+        require Carp;
+        my $caller = (caller(1))[3];
+        $caller =~ s/.*:://;
+        Carp::croak "Too late to call $caller()"
+    }
+}
+
 sub chunks() {
     my $self = ref($_[0])
     ? shift
@@ -54,6 +68,7 @@ sub delimiters() {
     my $self = ref($_[0])
     ? shift
     : $default_object;
+    $self->check_late;
     my ($chunk_delimiter, $data_delimiter) = @_;
     $chunk_delimiter ||= $chunk_delim_default;
     $data_delimiter ||= $data_delim_default;
@@ -66,6 +81,7 @@ sub spec_file() {
     my $self = ref($_[0])
     ? shift
     : $default_object;
+    $self->check_late;
     $self->_spec_file(shift);
     return $self;
 }
@@ -74,6 +90,7 @@ sub spec_string() {
     my $self = ref($_[0])
     ? shift
     : $default_object;
+    $self->check_late;
     $self->_spec_string(shift);
     return $self;
 }
@@ -82,6 +99,7 @@ sub filters() {
     my $self = ref($_[0])
     ? shift
     : $default_object;
+    $self->check_late;
     my $filters = $self->_filters;
     push @$filters, @_;
     return $self;
@@ -91,6 +109,7 @@ sub filters_map() {
     my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
+    $self->check_late;
     $self->_filters_map(shift || {});
     return $self;
 }
@@ -104,7 +123,7 @@ sub run(&) {
 }
 
 # XXX Dummy implementation for now.
-sub diff_is() {
+sub diff_is($$;$) {
     require Algorithm::Diff;
     is($_[0], $_[1], (@_ > 1 ? ($_[2]) : ()));
 }

@@ -24,6 +24,7 @@ t/eval.t
 t/export.t
 t/filters.t
 t/filters_map.t
+t/late.t
 t/lines.t
 t/list.t
 t/normalize.t
