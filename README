@@ -11,7 +11,7 @@ SYNOPSIS
         for my $chunk (chunks) {
             # Note that this code is conceptual only. Pod::Simple is not so
             # simple as to provide a simple pod_to_html function.
-            diff_is(
+            is(
                 Pod::Simple::pod_to_html($chunk->pod),
                 $chunk->text,
                 $chunk->description, 
@@ -53,16 +53,6 @@ EXPORTED FUNCTIONS
     can basically write your tests the same as Test::More. Test::Chunks
     exports a few more functions though:
 
-  run(&subroutine)
-    The "run" function takes a subroutine as an argument, and calls the sub
-    one time for each chunk in the specification. It passes the current
-    chunk object to the sub routine.
-
-        run {
-            my $chunk = shift;
-            is(process($chunk->foo), $chunk->bar, $chunk->description);
-        };
-
   chunks()
     The most important function is "chunks". In list context it returns a
     list of "Test::Chunk" objects that are generated from the test
@@ -73,6 +63,39 @@ EXPORTED FUNCTIONS
     Each Test::Chunk object has methods that correspond to the names of that
     object's data sections. There is also a "description" method for
     accessing the description text of the object.
+
+  run(&subroutine)
+    There are many ways to write your tests. You can reference each chunk
+    individually or you can loop over all the chunks and perform a common
+    operation. The "run" function does the looping for you, so all you need
+    to do is pass it a code block to execute for each chunk.
+
+    The "run" function takes a subroutine as an argument, and calls the sub
+    one time for each chunk in the specification. It passes the current
+    chunk object to the subroutine.
+
+        run {
+            my $chunk = shift;
+            is(process($chunk->foo), $chunk->bar, $chunk->description);
+        };
+
+  run_is(data_name1, data_name2)
+    Many times you simply want to see if two data sections are equivalent in
+    every chunk, probably after having been run through one or more filters.
+    With the "run_is" function, you can just pass the names of any two data
+    sections that exist in every chunk, and it will loop over every chunk
+    comparing the two sections.
+
+        run_is 'foo', 'bar';
+
+  run_like(data_name, regexp | data_name);
+    The "run_like" function is similar to "run_is" except the second
+    argument is a regular expression. The regexp can either be a "qr{}"
+    object or a data section that has been filtered into a regular
+    expression.
+
+        run_like 'foo', qr{<html.*};
+        run_like 'foo', 'match';
 
   delimiters($chunk_delimiter, $data_delimiter)
     Override the default delimiters of "===" and "---".
@@ -101,11 +124,6 @@ EXPORTED FUNCTIONS
         });
 
     If a filters list has only one element, the array ref is optional.
-
-  diff_is()
-    Like Test::More's "is()", but on failure reports a diff of the expected
-    and actual output. This is often very useful when your chunks are large.
-    Requires the Algorithm::Diff module.
 
   default_object()
     Returns the default Test::Chunks object. This is useful if you feel the
@@ -201,8 +219,10 @@ FILTERS
 
         use Test::Chunks;
 
-        filters(foo bar);
-        filters_map({ perl => 'strict'});
+        filters qw(foo bar);
+        filters_map { perl => 'strict'};
+
+        sub upper { uc(shift) }
 
         __END__
 
@@ -243,6 +263,16 @@ FILTERS
     Run Perl's "eval" command against the data and use the returned value as
     the data.
 
+  regexp[=xism]
+    The "regexp" filter will turn your data section into a regular
+    expression object. You can pass in extra flags after an equals sign.
+
+    If the text contains more than one line then the 'x' flag is assumed.
+
+  get_url
+    The text is chomped and considered to be a url. Then LWP::Simple::get is
+    used to fetch the contents of the url.
+
   yaml
     Apply the YAML::Load function to the data chunk and use the resultant
     structure. Requires YAML.pm.
@@ -266,19 +296,32 @@ FILTERS
     Unescape all backslash escaped chars.
 
   Rolling Your Own Filters
-    Creating filter extensions is very simple. Here is a self explanatory
-    example:
+    Creating filter extensions is very simple. You can either write a
+    *function* in the "main" namespace, or a *method* in the
+    "Test::Chunks::Filter" namespace. In either case the text and any extra
+    arguments are passed in and you return whatever you want the new value
+    to be.
+
+    Here is a self explanatory example:
 
         use Test::Chunks;
 
-        filters(foo);
+        filters 'foo', 'bar=xyz';
 
-        sub Test::Chunks::Filter::foo {
+        sub foo {
+            transform(shift);
+        }
+        
+        sub Test::Chunks::Filter::bar {
             my $class = shift;
             my $data = shift;
-            # transform $data in a fooish manner
+            my $args = shift;
+            # transform $data in a barish manner
             return $data;
         }    
+
+    Normally you'll probably just use the functional interface, although all
+    the builtin filters are methods.
 
 OO
     Test::Chunks has a nice functional interface for simple usage. Under the
@@ -307,9 +350,6 @@ OTHER COOL FEATURES
         use warnings;
 
     to all of your test scripts. A Spiffy feature indeed.
-
-TODO
-    * diff_is() just calls is() for now. Need to implement.
 
 AUTHOR
     Brian Ingerson <ingy@cpan.org>

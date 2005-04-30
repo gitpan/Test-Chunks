@@ -1,4 +1,13 @@
 ---
+version: 0.17
+date:    Sat Apr 30 12:16:03 PDT 2005
+changes:
+- Allow user filters to be plain functions
+- Add run_like
+- Add regexp and get_url filters
+- Allow run* functions to work as methods
+- Remove diff_is() until implemented
+---
 version: 0.16
 date:    Fri Apr 29 20:04:24 PDT 2005
 changes:

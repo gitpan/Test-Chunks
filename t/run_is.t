@@ -2,9 +2,9 @@ use Test::Chunks;
 
 plan tests => 7 * chunks;
 
-run_is('foo', 'bar');
-run_is('bar', 'baz');
-run_is('baz', 'foo');
+run_is 'foo', 'bar';
+run_is 'bar', 'baz';
+run_is 'baz', 'foo';
 
 for my $chunk (chunks) {
     is($chunk->foo, $chunk->bar, $chunk->description);

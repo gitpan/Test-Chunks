@@ -4,7 +4,7 @@ plan tests => 1 * chunks;
 
 # A silly test instead of pod2html
 for my $chunk (chunks) {
-    diff_is(
+    is(
         uc($chunk->pod),
         $chunk->upper,
         $chunk->description, 
