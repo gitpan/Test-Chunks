@@ -1,6 +1,6 @@
 package Test::Chunks;
 use Spiffy 0.23 -Base;
-use Spiffy -XXX;
+# use Spiffy -XXX; # XXX Currently broken in some exporter situations
 use Test::More;
 
 our @EXPORT = qw(
@@ -10,12 +10,19 @@ our @EXPORT = qw(
     plan can_ok isa_ok diag
     $TODO
 
-    chunks delimiters spec_file spec_string filters filters_map run
+    chunks delimiters spec_file spec_string filters filters_map 
+    run run_is
     diff_is
     WWW XXX YYY ZZZ
 );
 
-our $VERSION = '0.15';
+# XXX Add these manually for now
+sub WWW() { goto &Spiffy::WWW }
+sub XXX() { goto &Spiffy::XXX }
+sub YYY() { goto &Spiffy::YYY }
+sub ZZZ() { goto &Spiffy::ZZZ }
+
+our $VERSION = '0.16';
 
 sub import() {
     _strict_warnings();
@@ -119,6 +126,16 @@ sub run(&) {
     my $callback = shift;
     for my $chunk ($self->chunks) {
         &{$callback}($chunk);
+    }
+}
+
+sub run_is($$) {
+    my $self = $default_object;
+    my ($x, $y) = @_;
+    for my $chunk ($self->chunks) {
+        is($chunk->$x, $chunk->$y, 
+           $chunk->description ? $chunk->description : ()
+          );
     }
 }
 
@@ -302,6 +319,21 @@ sub list {
     ];
 }
 
+sub dumper {
+    require Data::Dumper;
+    local $Data::Dumper::Sortkeys = 1;
+    local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Terse = 1;
+    Data::Dumper::Dumper(@_);
+}
+
+sub strict {
+    <<'...' . shift;
+use strict;
+use warnings;
+...
+}
+
 __DATA__
 
 =head1 NAME
@@ -382,6 +414,10 @@ specification in the C<DATA> section of your test file. In scalar
 context it returns the number of objects. This is useful to calculate
 your Test::More plan.
 
+Each Test::Chunk object has methods that correspond to the names of that
+object's data sections. There is also a C<description> method for
+accessing the description text of the object.
+
 =head2 delimiters($chunk_delimiter, $data_delimiter)
 
 Override the default delimiters of C<===> and C<--->.
@@ -440,8 +476,8 @@ all the text input.
 
 A I<test specification> is a series of text lines. Each test (or chunk)
 is separated by a line containing the chunk delimiter and an optional
-description. Each chunk is further subdivided into named sections with a
-line containing the data delimiter and the data section name.
+C<description>. Each chunk is further subdivided into named sections
+with a line containing the data delimiter and the data section name.
 
 Here is an example:
 
@@ -498,27 +534,45 @@ If there is more than one chunk with ONLY, the first one will be chosen.
 
 =head1 FILTERS
 
+The real power in writing tests with Test::Chunks comes from its
+filtering capabilities. Test::Chunks comes with an ever growing set
+of useful generic filters than you can sequence and apply to various
+test chunks. That means you can specify the chunk serialization in
+the most readable format you can find, and let the filters translate
+it into what you really need for a test. It is easy to write your own
+filters as well.
+
 Test::Chunks allows you to specify a list of filters. The default
 filters are C<norm> and C<trim>. These filters will be applied (in
 order) to the data after it has been parsed from the specification and
 before it is set into its Test::Chunk object.
 
-You can specify the default filters with the C<filters> function. You
-can specify additional filters to a specific chunk by listing them after
-the section name on a data section delimiter line.
+You can add to the the default filter list with the C<filters> function.
+You can specify additional filters to a specific chunk by listing them
+after the section name on a data section delimiter line.
 
 Example:
 
     use Test::Chunks;
 
-    filters(norm foo bar);
+    filters(foo bar);
+    filters_map({ perl => 'strict'});
 
     __END__
+
     === Test one
     --- foo trim chomp upper
     ...
+
     --- bar -norm
     ...
+
+    --- perl eval dump
+    my @foo = map {
+        - $_;
+    } 1..10;
+    \ @foo;
+    
 
 Putting a C<-> before a filter on a delimiter line, disables that
 filter.
@@ -555,6 +609,20 @@ as the data.
 
 Apply the YAML::Load function to the data chunk and use the resultant
 structure. Requires YAML.pm.
+
+=head2 dumper
+
+Take a data structure (presumably from another filter like eval) and use
+Data::Dumper to dump it in a canonical fashion.
+
+=head2 strict
+
+Prepend the string:
+
+    use strict; 
+    use warnings;
+
+to the chunk's text.
 
 =head2 base64
 

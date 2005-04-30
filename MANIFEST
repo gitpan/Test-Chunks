@@ -19,6 +19,7 @@ t/delimiters.t
 t/description.t
 t/diff_is.t
 t/dos_spec
+t/dumper.t
 t/esc.t
 t/eval.t
 t/export.t
@@ -30,11 +31,14 @@ t/list.t
 t/normalize.t
 t/only.t
 t/oo.t
+t/run_is.t
 t/simple.t
 t/skip.t
 t/spec1
 t/spec2
 t/spec_file.t
 t/spec_string.t
+t/strict.t
 t/trim.t
+t/xxx.t
 t/yaml.t

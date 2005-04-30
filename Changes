@@ -1,4 +1,11 @@
 ---
+version: 0.16
+date:    Fri Apr 29 20:04:24 PDT 2005
+changes:
+- added run_is for common equality tests
+- strict and dumper filters
+- Can't use `Spiffy -XXX` until Spiffy exporting is fixed.
+---
 version: 0.15
 date:    Wed Apr 27 23:50:50 PDT 2005
 changes:
