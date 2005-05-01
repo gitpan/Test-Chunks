@@ -3,8 +3,8 @@ use Test::Chunks;
 plan tests => 3 * chunks;
 
 run_like('html', 're1');
-run_like('html', 're2');
-run_like('html', qr{stylesheet});
+run_like 'html', 're2';
+run_like html => qr{stylesheet};
 
 __END__
 

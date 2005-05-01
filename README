@@ -88,6 +88,10 @@ EXPORTED FUNCTIONS
 
         run_is 'foo', 'bar';
 
+  run_is_deeply(data_name1, data_name2)
+    Like "run_is" but uses "is_deeply" for complex data structure
+    comparison.
+
   run_like(data_name, regexp | data_name);
     The "run_like" function is similar to "run_is" except the second
     argument is a regular expression. The regexp can either be a "qr{}"
@@ -233,7 +237,7 @@ FILTERS
         --- bar -norm
         ...
 
-        --- perl eval dump
+        --- perl eval dumper
         my @foo = map {
             - $_;
         } 1..10;

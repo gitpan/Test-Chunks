@@ -11,7 +11,7 @@ our @EXPORT = qw(
     $TODO
 
     chunks delimiters spec_file spec_string filters filters_map 
-    run run_is run_like
+    run run_is run_is_deeply run_like
     WWW XXX YYY ZZZ
 );
 #     diff_is
@@ -22,7 +22,7 @@ sub XXX() { goto &Spiffy::XXX }
 sub YYY() { goto &Spiffy::YYY }
 sub ZZZ() { goto &Spiffy::ZZZ }
 
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 sub import() {
     _strict_warnings();
@@ -131,7 +131,7 @@ sub run(&) {
     }
 }
 
-sub run_is($$) {
+sub run_is() {
     my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
@@ -143,7 +143,19 @@ sub run_is($$) {
     }
 }
 
-sub run_like($$) {
+sub run_is_deeply() {
+    my $self = ref($_[0]) eq __PACKAGE__
+    ? shift
+    : $default_object;
+    my ($x, $y) = @_;
+    for my $chunk ($self->chunks) {
+        is_deeply($chunk->$x, $chunk->$y, 
+           $chunk->description ? $chunk->description : ()
+          );
+    }
+}
+
+sub run_like() {
     my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
@@ -486,6 +498,10 @@ comparing the two sections.
 
     run_is 'foo', 'bar';
 
+=head2 run_is_deeply(data_name1, data_name2)
+
+Like C<run_is> but uses C<is_deeply> for complex data structure comparison.
+
 =head2 run_like(data_name, regexp | data_name);
 
 The C<run_like> function is similar to C<run_is> except the second
@@ -649,7 +665,7 @@ Example:
     --- bar -norm
     ...
 
-    --- perl eval dump
+    --- perl eval dumper
     my @foo = map {
         - $_;
     } 1..10;

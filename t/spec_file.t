@@ -1,7 +1,7 @@
 use Test::Chunks;
 
-filters('chomp');
-spec_file('t/spec2');
+filters 'chomp';
+spec_file 't/spec2';
 
 plan tests => 3 * chunks;
 

@@ -1,7 +1,7 @@
 use Test::Chunks;
 
-filters('chomp');
-spec_string(<<'...');
+filters 'chomp';
+spec_string <<'...';
 ===
 --- foo
 1

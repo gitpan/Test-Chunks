@@ -1,6 +1,6 @@
 use Test::Chunks;
 
-delimiters(qw($$$ ***));
+delimiters qw($$$ ***);
 
 plan tests => 1 * chunks;
 

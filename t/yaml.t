@@ -1,15 +1,15 @@
 use Test::Chunks;
 
-filters_map({
-    data1 => 'yaml',
-    data2 => 'eval',
-});
-
 if (eval("require YAML; 1")) {
+    filters_map {
+        data1 => 'yaml',
+        data2 => 'eval',
+    };
     plan tests => 1 * chunks;
 }
 else {
     plan skip_all => "YAML.pm required for this test";
+    exit 0;
 }
 
 run {

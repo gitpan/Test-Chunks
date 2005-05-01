@@ -4,7 +4,7 @@ if (eval("require YAML; 1")) {
     plan tests => 1 * chunks;
 }
 else {
-    plan skip_all => "YAML.pm required for this test";
+    plan skip_all => "YAML.pm required for this test"; exit;
 }
 
 my ($chunk) = chunks;

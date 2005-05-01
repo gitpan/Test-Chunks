@@ -1,4 +1,9 @@
 ---
+version: 0.18
+date:    Sat Apr 30 17:27:09 PDT 2005
+changes:
+- Support run_is_deeply
+---
 version: 0.17
 date:    Sat Apr 30 12:16:03 PDT 2005
 changes:

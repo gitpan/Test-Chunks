@@ -2,7 +2,7 @@ use Test::Chunks;
 
 plan tests => 1 * chunks;
 
-run_is('perl', 'strict');
+run_is perl => 'strict';
 
 __DATA__
 === Strict Test

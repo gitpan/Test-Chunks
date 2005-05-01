@@ -1,6 +1,6 @@
 use Test::Chunks;
 
-filters('eval');
+filters 'eval';
 
 plan tests => 4;
 

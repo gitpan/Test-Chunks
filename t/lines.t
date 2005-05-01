@@ -2,17 +2,21 @@ use Test::Chunks;
 
 plan tests => 4;
 
-is_deeply([chunks]->[0]->text1, [
+is_deeply 
+[chunks]->[0]->text1, 
+[
     "One\n",
     "Two\n",
     "Three \n",
-]);
+];
 
-is_deeply([chunks]->[0]->text2, [
+is_deeply
+[chunks]->[0]->text2, 
+[
     "Three\n",
     "Two\n",
     "One",
-]);
+];
 
 is(ref([chunks]->[0]->text3), 'ARRAY');
 is(scalar(@{[chunks]->[0]->text3}), 0);

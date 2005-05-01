@@ -6,11 +6,11 @@ run {
     ok(1);
 };
 
-is(scalar(chunks), 2);
+is scalar(chunks), 2;
 
 my @chunk = chunks;
-is($chunk[0]->foo, "2\n");
-is($chunk[1]->foo, "3\n");
+is $chunk[0]->foo, "2\n";
+is $chunk[1]->foo, "3\n";
 
 __DATA__
 === One
