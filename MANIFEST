@@ -12,6 +12,7 @@ Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
+t/array.t
 t/base64.t
 t/chomp.t
 t/compile.t
@@ -20,7 +21,7 @@ t/description.t
 t/diff_is.t
 t/dos_spec
 t/dumper.t
-t/esc.t
+t/escape.t
 t/eval.t
 t/export.t
 t/filter_functions.t
@@ -35,6 +36,7 @@ t/only.t
 t/oo.t
 t/oo_run.t
 t/regexp.t
+t/reserved_names.t
 t/run_is.t
 t/run_is_deeply.t
 t/run_like.t

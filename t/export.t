@@ -3,6 +3,7 @@ use Test::Chunks;
 plan 'no_plan';
 
 ok(defined &plan);
+ok(defined &ok);
 ok(defined &is);
 ok(defined &isnt);
 ok(defined &like);

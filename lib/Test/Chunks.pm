@@ -2,6 +2,7 @@ package Test::Chunks;
 use Spiffy 0.24 -Base;
 use Spiffy ':XXX';
 use Test::More;
+use Carp;
 
 our @EXPORT = qw(
     ok is isnt like unlike is_deeply cmp_ok
@@ -16,7 +17,7 @@ our @EXPORT = qw(
 );
 #     diff_is
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 sub import() {
     _strict_warnings();
@@ -50,10 +51,9 @@ sub default_object { $default_object }
 
 sub check_late {
     if ($self->{chunks_list}) {
-        require Carp;
         my $caller = (caller(1))[3];
         $caller =~ s/.*:://;
-        Carp::croak "Too late to call $caller()"
+        croak "Too late to call $caller()"
     }
 }
 
@@ -183,6 +183,17 @@ sub _chunks_init {
     return [@chunks];
 }
 
+sub _check_reserved {
+    my $name = shift;
+    croak "'$name' is a reserved name. Use something else.\n"
+      if $name =~ /^(
+         new |
+         field |
+         description
+      )$/x or
+      $name =~ /^_/;
+}
+
 sub _make_chunk {
     my $hunk = shift;
     my $cd = $self->chunk_delim;
@@ -193,30 +204,30 @@ sub _make_chunk {
     my @parts = split /^\Q${dd}\E +(\w+) *(.*)?\n/m, $hunk;
     shift @parts;
     while (@parts) {
-        my ($type, $filters, $text) = splice(@parts, 0, 3);
+        my ($type, $filters, @value) = splice(@parts, 0, 3);
+        @value = ('') unless @value > 0;
+        $self->_check_reserved($type);
         for my $filter ($self->_get_filters($type, $filters)) {
-            my @args = ();
-            if ($filter =~ s/=(.*)$//) {
-                @args = ($1);
-            }
+            $Test::Chunks::Filter::arguments =
+              $filter =~ s/=(.*)$// ? $1 : undef;
             my $function = "main::$filter";
             no strict 'refs';
             if (defined &$function) {
-                $text = &$function($text, @args);
+                @value = &$function(@value);
             }
             elsif ($self->filter_class->can($filter)) {
-                $text = $self->filter_class->$filter($text, @args);
+                @value = $self->filter_class->$filter(@value);
             }
             else {
                 die "Can't find a function or method for '$filter' filter\n";
             }
         }
-        $chunk->set_chunk($type, $text);
+        $chunk->_set_value($type, @value);
     }
     for (keys %$chunk) {
         $chunk->{$_} ||= '';
     }
-    $chunk->description($description);
+    $chunk->_set_value(description => $description);
     return $chunk;
 }
 
@@ -288,20 +299,50 @@ sub _strict_warnings() {
 }
 
 package Test::Chunk;
-use Spiffy -base;
 
-field 'description';
+sub new() {
+    bless {}, shift;
+}
 
-sub set_chunk {
-    my ($type, $text) = @_;
-    field $type
-      unless $self->can($type);
-    $self->$type($text);
+sub _make_accessor() {
+    my $name = shift;
+    no strict 'refs';
+    return if defined &$name;
+    *$name = sub {
+        my $self = shift;
+        if (@_) {
+            Carp::croak "Not allowed to set values for '$name'";
+        }
+        my @list = @{$self->{$name}};
+        return wantarray
+        ? (@list)
+        : $list[0];
+    };
+}
+
+_make_accessor 'description';
+
+sub _set_value {
+    my $name = shift;
+    _make_accessor $name
+      unless $self->can($name);
+    $self->{$name} = [@_];
 }
 
 package Test::Chunks::Filter;
 
+our $arguments;
+
+sub _assert_scalar {
+    return if @_ == 1;
+    require Carp;
+    my $filter = (caller(1))[3];
+    $filter =~ s/.*:://;
+    Carp::croak "Input to the '$filter' filter must be a scalar, not a list";
+}
+
 sub norm {
+    $self->_assert_scalar(@_);
     my $text = shift || '';
     $text =~ s/\015\012/\n/g;
     $text =~ s/\r/\n/g;
@@ -309,51 +350,53 @@ sub norm {
 }
 
 sub chomp {
-    my $text = shift;
-    CORE::chomp($text);
-    return $text;
+    map { CORE::chomp; $_ } @_;
 }
 
 sub trim {
-    my $text = shift;
-    $text =~ s/\A([ \t]*\n)+//;
-    $text =~ s/(?<=\n)\s*\z//g;
-    return $text;
+    map {
+        s/\A([ \t]*\n)+//;
+        s/(?<=\n)\s*\z//g;
+        $_;
+    } @_;
 }
 
 sub base64 {
+    $self->_assert_scalar(@_);
     require MIME::Base64;
     MIME::Base64::decode_base64(shift);
 }
 
-sub esc {
+sub escape {
+    $self->_assert_scalar(@_);
     my $text = shift;
     $text =~ s/(\\.)/eval "qq{$1}"/ge;
     return $text;
 }
 
 sub eval {
-    return CORE::eval(shift);
+    $self->_assert_scalar(@_);
+    my @return = CORE::eval(shift);
+    return $@ if $@;
+    return @return;
 }
 
 sub yaml {
+    $self->_assert_scalar(@_);
     require YAML;
     return YAML::Load(shift);
 }
 
 sub lines {
+    $self->_assert_scalar(@_);
     my $text = shift;
-    return [] unless length $text;
+    return () unless length $text;
     my @lines = ($text =~ /^(.*\n?)/gm);
-    return \@lines;
+    return @lines;
 }
 
-sub list {
-    return [ 
-        map {
-            CORE::chomp; $_
-        } @{$self->lines(shift)}
-    ];
+sub array {
+    [@_];
 }
 
 sub dumper {
@@ -366,6 +409,7 @@ sub dumper {
 }
 
 sub strict {
+    $self->_assert_scalar(@_);
     <<'...' . shift;
 use strict;
 use warnings;
@@ -373,7 +417,9 @@ use warnings;
 }
 
 sub regexp {
-    my ($text, $flags) = @_;
+    $self->_assert_scalar(@_);
+    my $text = shift;
+    my $flags = $Test::Chunks::Filter::arguments;
     if ($text =~ /\n.*?\n/s) {
         $flags = 'xism'
           unless defined $flags;
@@ -388,6 +434,7 @@ sub regexp {
 }
 
 sub get_url {
+    $self->_assert_scalar(@_);
     my $url = shift;
     CORE::chomp($url);
     require LWP::Simple;
@@ -665,40 +712,80 @@ Example:
         - $_;
     } 1..10;
     \ @foo;
-    
 
 Putting a C<-> before a filter on a delimiter line, disables that
 filter.
 
+=head2 Scalar vs List
+
+Each filter can take either a scalar or a list as input, and will return
+either a scalar or a list. Since filters are chained together, it is
+important to learn which filters expect which kind of input and return
+which kind of output.
+
+For example, consider the following filter list:
+
+    norm trim lines chomp array dumper eval
+
+The data always starts out as a single scalar string. C<norm> takes a
+scalar and returns a scalar. C<trim> takes a list and returns a list,
+but a scalar is a valid list. C<lines> takes a scalar and returns a
+list. C<chomp> takes a list and returns a list. C<array> takes a list
+and returns a scalar (an anonymous array reference containing the list
+elements). C<dumper> takes a list and returns a scalar. C<eval> takes a
+scalar and creates a list.
+
+A list of exactly one element works fine as input to a filter requiring
+a scalar, but any other list will cause an exception. A scalar in list
+context is considered a list of one element.
+
+Data accessor methods for chunks will return a list of values when used
+in list context, and the first element of the list in scalar context.
+This usually does the right thing, but be aware.
+
 =head2 norm
+
+scalar => scalar
 
 Normalize the data. Change non-Unix line endings to Unix line endings.
 
 =head2 chomp
 
-Remove the final newline. The newline on the last line.
+list => list
+
+Remove the final newline from each string value in a list.
 
 =head2 trim
+
+list => list
 
 Remove extra blank lines from the beginning and end of the data. This
 allows you to visually separate your test data with blank lines.
 
 =head2 lines
 
+scalar => list
+
 Break the data into an anonymous array of lines. Each line (except
 possibly the last one if the C<chomp> filter came first) will have a
 newline at the end.
 
-=head2 list
+=head2 array
 
-Same as the C<lines> filter, except all newlines are chomped.
+list => scalar
+
+Turn a list of values into an anonymous array reference.
 
 =head2 eval
+
+scalar => list
 
 Run Perl's C<eval> command against the data and use the returned value
 as the data.
 
 =head2 regexp[=xism]
+
+scalar => scalar
 
 The C<regexp> filter will turn your data section into a regular
 expression object. You can pass in extra flags after an equals sign.
@@ -708,20 +795,28 @@ the 'xism' flags are assumed.
 
 =head2 get_url
 
+scalar => scalar
+
 The text is chomped and considered to be a url. Then LWP::Simple::get is
 used to fetch the contents of the url.
 
 =head2 yaml
+
+scalar => list
 
 Apply the YAML::Load function to the data chunk and use the resultant
 structure. Requires YAML.pm.
 
 =head2 dumper
 
+scalar => list
+
 Take a data structure (presumably from another filter like eval) and use
 Data::Dumper to dump it in a canonical fashion.
 
 =head2 strict
+
+scalar => scalar
 
 Prepend the string:
 
@@ -732,9 +827,13 @@ to the chunk's text.
 
 =head2 base64
 
+scalar => scalar
+
 Decode base64 data. Useful for binary tests.
 
-=head2 esc
+=head2 escape
+
+scalar => scalar
 
 Unescape all backslash escaped chars.
 

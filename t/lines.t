@@ -1,20 +1,24 @@
 use Test::Chunks;
 
-plan tests => 4;
+plan tests => 6;
 
+my @lines1 = [chunks]->[0]->text1;
+ok(@lines1 == 3);
 is_deeply 
-[chunks]->[0]->text1, 
+\@lines1,
 [
     "One\n",
     "Two\n",
     "Three \n",
 ];
 
+my @lines2 = [chunks]->[0]->text2;
+ok(@lines2 == 3);
 is_deeply
-[chunks]->[0]->text2, 
+\@lines2,
 [
-    "Three\n",
-    "Two\n",
+    "Three",
+    "Two",
     "One",
 ];
 
@@ -27,8 +31,8 @@ __END__
 One
 Two
 Three 
---- text2 chomp lines
+--- text2 lines chomp
 Three
 Two
 One
---- text3 lines
+--- text3 lines array

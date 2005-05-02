@@ -14,8 +14,8 @@ for my $chunk (chunks) {
 
 my @chunks = chunks;
 
-is($chunks[0]->{foo}, "Hey Now\n");
-is($chunks[1]->{foo}, "Holy Cow\n");
+is($chunks[0]->foo, "Hey Now\n");
+is($chunks[1]->foo, "Holy Cow\n");
 
 __END__
 

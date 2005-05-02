@@ -1,4 +1,9 @@
 ---
+version: 0.20
+date:    Mon May  2 00:08:17 PDT 2005
+changes:
+- Added list context to filters. Very powerful stuff.
+---
 version: 0.19
 date:    Sat Apr 30 17:27:09 PDT 2005
 changes:

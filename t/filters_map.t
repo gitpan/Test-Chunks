@@ -2,7 +2,7 @@ use Test::Chunks;
 
 filters_map {
     perl => ['eval'],
-    text => ['chomp', 'lines'],
+    text => ['chomp', 'lines', 'array'],
 };
 
 plan tests => 3 * chunks;

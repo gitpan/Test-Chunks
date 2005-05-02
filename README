@@ -242,32 +242,72 @@ FILTERS
             - $_;
         } 1..10;
         \ @foo;
-    
+
     Putting a "-" before a filter on a delimiter line, disables that filter.
 
+  Scalar vs List
+    Each filter can take either a scalar or a list as input, and will return
+    either a scalar or a list. Since filters are chained together, it is
+    important to learn which filters expect which kind of input and return
+    which kind of output.
+
+    For example, consider the following filter list:
+
+        norm trim lines chomp array dumper eval
+
+    The data always starts out as a single scalar string. "norm" takes a
+    scalar and returns a scalar. "trim" takes a list and returns a list, but
+    a scalar is a valid list. "lines" takes a scalar and returns a list.
+    "chomp" takes a list and returns a list. "array" takes a list and
+    returns a scalar (an anonymous array reference containing the list
+    elements). "dumper" takes a list and returns a scalar. "eval" takes a
+    scalar and creates a list.
+
+    A list of exactly one element works fine as input to a filter requiring
+    a scalar, but any other list will cause an exception. A scalar in list
+    context is considered a list of one element.
+
+    Data accessor methods for chunks will return a list of values when used
+    in list context, and the first element of the list in scalar context.
+    This usually does the right thing, but be aware.
+
   norm
+    scalar => scalar
+
     Normalize the data. Change non-Unix line endings to Unix line endings.
 
   chomp
-    Remove the final newline. The newline on the last line.
+    list => list
+
+    Remove the final newline from each string value in a list.
 
   trim
+    list => list
+
     Remove extra blank lines from the beginning and end of the data. This
     allows you to visually separate your test data with blank lines.
 
   lines
+    scalar => list
+
     Break the data into an anonymous array of lines. Each line (except
     possibly the last one if the "chomp" filter came first) will have a
     newline at the end.
 
-  list
-    Same as the "lines" filter, except all newlines are chomped.
+  array
+    list => scalar
+
+    Turn a list of values into an anonymous array reference.
 
   eval
+    scalar => list
+
     Run Perl's "eval" command against the data and use the returned value as
     the data.
 
   regexp[=xism]
+    scalar => scalar
+
     The "regexp" filter will turn your data section into a regular
     expression object. You can pass in extra flags after an equals sign.
 
@@ -275,18 +315,26 @@ FILTERS
     the 'xism' flags are assumed.
 
   get_url
+    scalar => scalar
+
     The text is chomped and considered to be a url. Then LWP::Simple::get is
     used to fetch the contents of the url.
 
   yaml
+    scalar => list
+
     Apply the YAML::Load function to the data chunk and use the resultant
     structure. Requires YAML.pm.
 
   dumper
+    scalar => list
+
     Take a data structure (presumably from another filter like eval) and use
     Data::Dumper to dump it in a canonical fashion.
 
   strict
+    scalar => scalar
+
     Prepend the string:
 
         use strict; 
@@ -295,9 +343,13 @@ FILTERS
     to the chunk's text.
 
   base64
+    scalar => scalar
+
     Decode base64 data. Useful for binary tests.
 
-  esc
+  escape
+    scalar => scalar
+
     Unescape all backslash escaped chars.
 
   Rolling Your Own Filters

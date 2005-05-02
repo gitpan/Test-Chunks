@@ -10,10 +10,10 @@ is($chunks[1]->escaped, "	foo\n		bar\n");
 __END__
 
 ===
---- escaped esc chomp
+--- escaped escape chomp
 line1\nline2
 ===
---- escaped esc
+--- escaped escape
 \tfoo
 \t\tbar
 
