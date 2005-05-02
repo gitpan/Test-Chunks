@@ -1,6 +1,6 @@
 package Test::Chunks;
-use Spiffy 0.23 -Base;
-# use Spiffy -XXX; # XXX Currently broken in some exporter situations
+use Spiffy 0.24 -Base;
+use Spiffy ':XXX';
 use Test::More;
 
 our @EXPORT = qw(
@@ -16,13 +16,7 @@ our @EXPORT = qw(
 );
 #     diff_is
 
-# XXX Add these manually for now
-sub WWW() { goto &Spiffy::WWW }
-sub XXX() { goto &Spiffy::XXX }
-sub YYY() { goto &Spiffy::YYY }
-sub ZZZ() { goto &Spiffy::ZZZ }
-
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 sub import() {
     _strict_warnings();
@@ -379,14 +373,15 @@ use warnings;
 }
 
 sub regexp {
-    my ($text, $flags) = (@_, '');
+    my ($text, $flags) = @_;
     if ($text =~ /\n.*?\n/s) {
-        $flags .= 'x'
-          unless $flags =~ /x/;
+        $flags = 'xism'
+          unless defined $flags;
     }
     else {
         CORE::chomp($text);
     }
+    $flags ||= '';
     my $regexp = eval "qr{$text}$flags";
     die $@ if $@;
     return $regexp;
@@ -708,7 +703,8 @@ as the data.
 The C<regexp> filter will turn your data section into a regular
 expression object. You can pass in extra flags after an equals sign.
 
-If the text contains more than one line then the 'x' flag is assumed.
+If the text contains more than one line and no flags are specified, then
+the 'xism' flags are assumed.
 
 =head2 get_url
 

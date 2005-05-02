@@ -34,6 +34,7 @@ t/normalize.t
 t/only.t
 t/oo.t
 t/oo_run.t
+t/regexp.t
 t/run_is.t
 t/run_is_deeply.t
 t/run_like.t

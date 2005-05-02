@@ -1,4 +1,10 @@
 ---
+version: 0.19
+date:    Sat Apr 30 17:27:09 PDT 2005
+changes:
+- Add regexp flag tests
+- Change -XXX to :XXX and use better Spiffy 0.24
+---
 version: 0.18
 date:    Sat Apr 30 17:27:09 PDT 2005
 changes:

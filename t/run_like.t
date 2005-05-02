@@ -17,7 +17,7 @@ __END__
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
         <link rel="stylesheet" href="/htdocs/default.css" type="text/css" />
---- re1 regexp=is
+--- re1 regexp=xis
 <!doctype
 .*
 <html

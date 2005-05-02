@@ -271,7 +271,8 @@ FILTERS
     The "regexp" filter will turn your data section into a regular
     expression object. You can pass in extra flags after an equals sign.
 
-    If the text contains more than one line then the 'x' flag is assumed.
+    If the text contains more than one line and no flags are specified, then
+    the 'xism' flags are assumed.
 
   get_url
     The text is chomped and considered to be a url. Then LWP::Simple::get is
