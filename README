@@ -113,19 +113,18 @@ EXPORTED FUNCTIONS
     function tells it to get the spec from a string that has been prepared
     somehow.
 
-  filters(@filter_list)
+  filters( @filters_list or $filters_hashref )
     Specify a list of additional filters to be applied to all chunks. See
     "FILTERS" below.
 
-  filters_map($hash_ref)
-    This function allows you to specify a hash that maps data section names
-    to an array ref of filters for that data type.
+    You can also specify a hash ref that maps data section names to an array
+    ref of filters for that data type.
 
-        filters_map({
+        filters {
             xxx => [qw(chomp lines)],
             yyy => ['yaml'],
             zzz => 'eval',
-        });
+        };
 
     If a filters list has only one element, the array ref is optional.
 
@@ -224,7 +223,7 @@ FILTERS
         use Test::Chunks;
 
         filters qw(foo bar);
-        filters_map { perl => 'strict'};
+        filters { perl => 'strict' };
 
         sub upper { uc(shift) }
 

@@ -17,7 +17,7 @@ our @EXPORT = qw(
 );
 #     diff_is
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 sub import() {
     _strict_warnings();
@@ -97,22 +97,24 @@ sub spec_string() {
 }
 
 sub filters() {
-    my $self = ref($_[0])
-    ? shift
-    : $default_object;
-    $self->check_late;
-    my $filters = $self->_filters;
-    push @$filters, @_;
-    return $self;
-}
-
-sub filters_map() {
     my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
     $self->check_late;
-    $self->_filters_map(shift || {});
+    if (ref($_[0]) eq 'HASH') {
+        $self->_filters_map(shift);
+    }
+    else {    
+        my $filters = $self->_filters;
+        push @$filters, @_;
+    }
     return $self;
+}
+
+sub filters_map() {
+    croak <<'...';
+The 'filters_map' function has been deprecated. Use 'filters' instead.
+...
 }
 
 sub run(&) {
@@ -569,21 +571,19 @@ By default, Test::Chunks reads its input from the DATA section. This
 function tells it to get the spec from a string that has been
 prepared somehow.
 
-=head2 filters(@filter_list)
+=head2 filters( @filters_list or $filters_hashref )
 
 Specify a list of additional filters to be applied to all chunks. See
 C<FILTERS> below.
 
-=head2 filters_map($hash_ref)
+You can also specify a hash ref that maps data section names to an array
+ref of filters for that data type.
 
-This function allows you to specify a hash that maps data section names
-to an array ref of filters for that data type.
-
-    filters_map({
+    filters {
         xxx => [qw(chomp lines)],
         yyy => ['yaml'],
         zzz => 'eval',
-    });
+    };
 
 If a filters list has only one element, the array ref is optional.
 
@@ -694,7 +694,7 @@ Example:
     use Test::Chunks;
 
     filters qw(foo bar);
-    filters_map { perl => 'strict'};
+    filters { perl => 'strict' };
 
     sub upper { uc(shift) }
 

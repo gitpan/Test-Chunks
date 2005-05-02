@@ -1,6 +1,6 @@
 use Test::Chunks;
 
-filters_map {
+filters {
     foo => 'upper',
     bar => 'lower',
 };

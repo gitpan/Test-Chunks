@@ -10,9 +10,9 @@ eval {
 like("$@", qr{^Too late to call filters\(\)});
 
 eval {
-    filters_map({foo => 'grate'});
+    filters({foo => 'grate'});
 };
-like("$@", qr{^Too late to call filters_map\(\)});
+like("$@", qr{^Too late to call filters\(\)});
 
 eval {
     delimiters('***', '&&&');

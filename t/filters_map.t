@@ -1,11 +1,19 @@
 use Test::Chunks;
 
+plan tests => 7;
+
+eval {
 filters_map {
     perl => ['eval'],
     text => ['chomp', 'lines', 'array'],
 };
+};
+like($@, qr{The 'filters_map' function has been deprecated.});
 
-plan tests => 3 * chunks;
+filters {
+    perl => ['eval'],
+    text => ['chomp', 'lines', 'array'],
+};
 
 run {
     my $chunk = shift;

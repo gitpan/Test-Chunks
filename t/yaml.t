@@ -1,7 +1,7 @@
 use Test::Chunks;
 
 if (eval("require YAML; 1")) {
-    filters_map {
+    filters {
         data1 => 'yaml',
         data2 => 'eval',
     };

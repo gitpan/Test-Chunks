@@ -1,4 +1,9 @@
 ---
+version: 0.21
+date:    Mon May  2 12:29:48 PDT 2005
+changes:
+- Deprecate filters_map and just use filters with a map.
+---
 version: 0.20
 date:    Mon May  2 00:08:17 PDT 2005
 changes:
