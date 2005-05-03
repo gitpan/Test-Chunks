@@ -17,7 +17,7 @@ our @EXPORT = qw(
 );
 #     diff_is
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 sub import() {
     _strict_warnings();
@@ -58,15 +58,27 @@ sub check_late {
 }
 
 sub chunks() {
-    my $self = ref($_[0])
+    my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
     my $chunks = $self->chunks_list;
-    return @$chunks;
+    if (@_ == 0) {
+        return @$chunks;
+    }
+    elsif (@_ == 1) {
+        my $name = shift;
+        my @chunks = grep {
+            exists $_->{$name};
+        } @$chunks;
+        return @chunks;
+    }
+    else {
+        croak "Invalid arguments passed to 'chunks'";
+    }
 }
 
 sub delimiters() {
-    my $self = ref($_[0])
+    my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
     $self->check_late;
@@ -79,7 +91,7 @@ sub delimiters() {
 }
 
 sub spec_file() {
-    my $self = ref($_[0])
+    my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
     $self->check_late;
@@ -88,7 +100,7 @@ sub spec_file() {
 }
 
 sub spec_string() {
-    my $self = ref($_[0])
+    my $self = ref($_[0]) eq __PACKAGE__
     ? shift
     : $default_object;
     $self->check_late;
@@ -133,6 +145,7 @@ sub run_is() {
     : $default_object;
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
+        next unless exists($chunk->{$x}) and exists($chunk->{$y});
         is($chunk->$x, $chunk->$y, 
            $chunk->description ? $chunk->description : ()
           );
@@ -145,6 +158,7 @@ sub run_is_deeply() {
     : $default_object;
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
+        next unless exists($chunk->{$x}) and exists($chunk->{$y});
         is_deeply($chunk->$x, $chunk->$y, 
            $chunk->description ? $chunk->description : ()
           );
@@ -158,6 +172,7 @@ sub run_like() {
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
         my $regexp = ref $y ? $y : $chunk->$y;
+        next unless exists($chunk->{$x}) and defined($y);
         like($chunk->$x, $regexp,
              $chunk->description ? $chunk->description : ()
             );
@@ -504,7 +519,7 @@ Test::Chunks extends Test::More and exports all of its functions. So you
 can basically write your tests the same as Test::More. Test::Chunks
 exports a few more functions though:
 
-=head2 chunks()
+=head2 chunks( [data-section-name] )
 
 The most important function is C<chunks>. In list context it returns a
 list of C<Test::Chunk> objects that are generated from the test
@@ -515,6 +530,14 @@ your Test::More plan.
 Each Test::Chunk object has methods that correspond to the names of that
 object's data sections. There is also a C<description> method for
 accessing the description text of the object.
+
+C<chunks> can take an optional single argument, that indicates to only
+return the chunks that contain a particular named data section.
+Otherwise C<chunks> returns all chunks.
+
+    my @all_of_my_chunks = chunks;
+
+    my @just_the_foo_chunks = chunks('foo');
 
 =head2 run(&subroutine)
 
@@ -541,6 +564,9 @@ sections that exist in every chunk, and it will loop over every chunk
 comparing the two sections.
 
     run_is 'foo', 'bar';
+
+NOTE: Test::Chunks will silently ignore any chunks that  don't contain both
+sections.
 
 =head2 run_is_deeply(data_name1, data_name2)
 

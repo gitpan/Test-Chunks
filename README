@@ -53,7 +53,7 @@ EXPORTED FUNCTIONS
     can basically write your tests the same as Test::More. Test::Chunks
     exports a few more functions though:
 
-  chunks()
+  chunks( [data-section-name] )
     The most important function is "chunks". In list context it returns a
     list of "Test::Chunk" objects that are generated from the test
     specification in the "DATA" section of your test file. In scalar context
@@ -63,6 +63,14 @@ EXPORTED FUNCTIONS
     Each Test::Chunk object has methods that correspond to the names of that
     object's data sections. There is also a "description" method for
     accessing the description text of the object.
+
+    "chunks" can take an optional single argument, that indicates to only
+    return the chunks that contain a particular named data section.
+    Otherwise "chunks" returns all chunks.
+
+        my @all_of_my_chunks = chunks;
+
+        my @just_the_foo_chunks = chunks('foo');
 
   run(&subroutine)
     There are many ways to write your tests. You can reference each chunk
@@ -87,6 +95,9 @@ EXPORTED FUNCTIONS
     comparing the two sections.
 
         run_is 'foo', 'bar';
+
+    NOTE: Test::Chunks will silently ignore any chunks that don't contain
+    both sections.
 
   run_is_deeply(data_name1, data_name2)
     Like "run_is" but uses "is_deeply" for complex data structure
