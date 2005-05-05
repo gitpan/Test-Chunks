@@ -1,4 +1,9 @@
 ---
+version: 0.24
+date:    Thu May  5 01:54:29 PDT 2005
+changes:
+- Refactored delimiter default handling
+---
 version: 0.23
 date:    Thu May  5 00:33:32 PDT 2005
 changes:

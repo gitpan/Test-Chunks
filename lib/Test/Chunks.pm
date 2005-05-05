@@ -20,10 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.23';
-
-my $chunk_delim_default = '===';
-my $data_delim_default = '---';
+our $VERSION = '0.24';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
@@ -37,12 +34,12 @@ field spec =>
 field chunks_list =>
       -init => '$self->_chunks_init';
 field chunk_delim =>
-      -init => '$self->_chunk_delim_default';
+      -init => '$self->chunk_delim_default';
 field data_delim =>
-      -init => '$self->_data_delim_default';
+      -init => '$self->data_delim_default';
 
-sub _chunk_delim_default { $chunk_delim_default }
-sub _data_delim_default { $data_delim_default }
+field chunk_delim_default => '===';
+field data_delim_default => '---';
 
 my $default_class;
 my $default_object;
@@ -104,8 +101,8 @@ sub delimiters() {
     (my ($self), @_) = find_my_self(@_);
     $self->check_late;
     my ($chunk_delimiter, $data_delimiter) = @_;
-    $chunk_delimiter ||= $chunk_delim_default;
-    $data_delimiter ||= $data_delim_default;
+    $chunk_delimiter ||= $self->chunk_delim_default;
+    $data_delimiter ||= $self->data_delim_default;
     $self->chunk_delim($chunk_delimiter);
     $self->data_delim($data_delimiter);
     return $self;
