@@ -14,13 +14,13 @@ like($@, qr{'new' is a reserved name});
 
 $chunks = Test::Chunks->new->spec_string(<<'...');
 === Fail test
---- field
+--- chunk_accessor
 This is a test
 --- foo
 This is a test
 ...
 eval {$chunks->chunks};
-like($@, qr{'field' is a reserved name});
+like($@, qr{'chunk_accessor' is a reserved name});
 
 $chunks = Test::Chunks->new->spec_string(<<'...');
 === Fail test

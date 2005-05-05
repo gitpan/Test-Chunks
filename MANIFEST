@@ -48,6 +48,9 @@ t/spec2
 t/spec_file.t
 t/spec_string.t
 t/strict.t
+t/subclass.t
+t/subclass_late.t
+t/TestChunkier.pm
 t/trim.t
 t/xxx.t
 t/yaml.t

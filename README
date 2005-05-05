@@ -55,13 +55,13 @@ EXPORTED FUNCTIONS
 
   chunks( [data-section-name] )
     The most important function is "chunks". In list context it returns a
-    list of "Test::Chunk" objects that are generated from the test
+    list of "Test::Chunks::Chunk" objects that are generated from the test
     specification in the "DATA" section of your test file. In scalar context
     it returns the number of objects. This is useful to calculate your
     Test::More plan.
 
-    Each Test::Chunk object has methods that correspond to the names of that
-    object's data sections. There is also a "description" method for
+    Each Test::Chunks::Chunk object has methods that correspond to the names
+    of that object's data sections. There is also a "description" method for
     accessing the description text of the object.
 
     "chunks" can take an optional single argument, that indicates to only
@@ -223,7 +223,7 @@ FILTERS
     Test::Chunks allows you to specify a list of filters. The default
     filters are "norm" and "trim". These filters will be applied (in order)
     to the data after it has been parsed from the specification and before
-    it is set into its Test::Chunk object.
+    it is set into its Test::Chunks::Chunk object.
 
     You can add to the the default filter list with the "filters" function.
     You can specify additional filters to a specific chunk by listing them
@@ -308,6 +308,11 @@ FILTERS
     list => scalar
 
     Turn a list of values into an anonymous array reference.
+
+  join
+    list => scalar
+
+    Join a list of strings into a scalar.
 
   eval
     scalar => list
@@ -396,7 +401,7 @@ OO
     created and all the functions are really just method calls on it.
 
     This means if you need to get fancy, you can use all the object oriented
-    stuff too. Just create new Test::Chunk objects and use the functions as
+    stuff too. Just create new Test::Chunks objects and use the functions as
     methods.
 
         use Test::Chunks;
@@ -409,6 +414,45 @@ OO
         plan tests => $chunks1->chunks + $chunks2->chunks;
 
         # ... etc
+
+SUBCLASSING
+    One of the nicest things about Test::Chunks is that it is easy to
+    subclass. This is very important, because in your personal project, you
+    will likely want to extend Test::Chunks with your own filters and other
+    reusable pieces of your test framework.
+
+    Here is a example of a subclass:
+
+        package MyTestStuff;
+        use Test::Chunks -Base;
+
+        our @EXPORT = qw(some_func);
+
+        const chunk_class => 'MyTestStuff::Chunk';
+        const filter_class => 'MyTestStuff::Filter';
+
+        sub some_func {
+            (my $self), @_ = find_my_self(@_);
+            ...
+        }
+
+        package MyTestStuff::Chunk;
+        use base 'Test::Chunks::Chunk';
+
+        sub desc {
+            $self->description(@_);
+        }
+
+        package MyTestStuff::Filter;
+        use base 'Test::Chunks::Filter';
+
+        sub upper {
+            $self->assert_scalar(@_);
+            uc(shift);
+        }
+
+    Note that you don't have to re-Export all the functions from
+    Test::Chunks. That happens automatically, due to the powers of Spiffy.
 
 OTHER COOL FEATURES
     Test::Chunks automatically adds

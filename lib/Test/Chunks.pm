@@ -14,20 +14,18 @@ our @EXPORT = qw(
     chunks delimiters spec_file spec_string filters filters_map 
     run run_is run_is_deeply run_like
     WWW XXX YYY ZZZ
+
+    find_my_self default_object
+
+    croak carp cluck confess
 );
-#     diff_is
 
-our $VERSION = '0.22';
-
-sub import() {
-    _strict_warnings();
-    goto &Spiffy::import;
-}
+our $VERSION = '0.23';
 
 my $chunk_delim_default = '===';
 my $data_delim_default = '---';
 
-field chunk_class => 'Test::Chunk';
+field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
 
 field '_spec_file';
@@ -46,8 +44,28 @@ field data_delim =>
 sub _chunk_delim_default { $chunk_delim_default }
 sub _data_delim_default { $data_delim_default }
 
-my $default_object = __PACKAGE__->new;
-sub default_object { $default_object }
+my $default_class;
+my $default_object;
+
+sub default_object { 
+    $default_object ||= $default_class->new;
+    return $default_object;
+}
+
+sub import() {
+    my $class = (grep /^-base$/i, @_) 
+    ? scalar(caller)
+    : $_[0];
+    if (not defined $default_class) {
+        $default_class = $class;
+    }
+    else {
+        croak "Can't use $class after using $default_class"
+          unless $default_class->isa($class);
+    }
+    _strict_warnings();
+    goto &Spiffy::import;
+}
 
 sub check_late {
     if ($self->{chunks_list}) {
@@ -57,10 +75,15 @@ sub check_late {
     }
 }
 
+sub find_my_self() {
+    my $self = ref($_[0]) eq $default_class
+    ? splice(@_, 0, 1)
+    : default_object();
+    return $self, @_;
+}
+
 sub chunks() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     my $chunks = $self->chunks_list;
     if (@_ == 0) {
         return @$chunks;
@@ -78,9 +101,7 @@ sub chunks() {
 }
 
 sub delimiters() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     $self->check_late;
     my ($chunk_delimiter, $data_delimiter) = @_;
     $chunk_delimiter ||= $chunk_delim_default;
@@ -91,27 +112,21 @@ sub delimiters() {
 }
 
 sub spec_file() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     $self->check_late;
     $self->_spec_file(shift);
     return $self;
 }
 
 sub spec_string() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     $self->check_late;
     $self->_spec_string(shift);
     return $self;
 }
 
 sub filters() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     $self->check_late;
     if (ref($_[0]) eq 'HASH') {
         $self->_filters_map(shift);
@@ -130,9 +145,7 @@ The 'filters_map' function has been deprecated. Use 'filters' instead.
 }
 
 sub run(&) {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     my $callback = shift;
     for my $chunk ($self->chunks) {
         &{$callback}($chunk);
@@ -140,9 +153,7 @@ sub run(&) {
 }
 
 sub run_is() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
@@ -153,9 +164,7 @@ sub run_is() {
 }
 
 sub run_is_deeply() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
@@ -166,9 +175,7 @@ sub run_is_deeply() {
 }
 
 sub run_like() {
-    my $self = ref($_[0]) eq __PACKAGE__
-    ? shift
-    : $default_object;
+    (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
         my $regexp = ref $y ? $y : $chunk->$y;
@@ -178,12 +185,6 @@ sub run_like() {
             );
     }
 }
-
-# XXX Dummy implementation for now.
-# sub diff_is($$;$) {
-#     require Algorithm::Diff;
-#     is($_[0], $_[1], (@_ > 1 ? ($_[2]) : ()));
-# }
 
 sub _chunks_init {
     my $spec = $self->spec;
@@ -205,7 +206,7 @@ sub _check_reserved {
     croak "'$name' is a reserved name. Use something else.\n"
       if $name =~ /^(
          new |
-         field |
+         chunk_accessor |
          description
       )$/x or
       $name =~ /^_/;
@@ -315,13 +316,12 @@ sub _strict_warnings() {
     );
 }
 
-package Test::Chunk;
+package Test::Chunks::Chunk;
+use Spiffy -base;
 
-sub new() {
-    bless {}, shift;
-}
+our @EXPORT = qw(chunk_accessor);
 
-sub _make_accessor() {
+sub chunk_accessor() {
     my $name = shift;
     no strict 'refs';
     return if defined &$name;
@@ -337,11 +337,11 @@ sub _make_accessor() {
     };
 }
 
-_make_accessor 'description';
+chunk_accessor 'description';
 
 sub _set_value {
     my $name = shift;
-    _make_accessor $name
+    chunk_accessor $name
       unless $self->can($name);
     $self->{$name} = [@_];
 }
@@ -350,7 +350,7 @@ package Test::Chunks::Filter;
 
 our $arguments;
 
-sub _assert_scalar {
+sub assert_scalar {
     return if @_ == 1;
     require Carp;
     my $filter = (caller(1))[3];
@@ -359,7 +359,7 @@ sub _assert_scalar {
 }
 
 sub norm {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     my $text = shift || '';
     $text =~ s/\015\012/\n/g;
     $text =~ s/\r/\n/g;
@@ -379,33 +379,33 @@ sub trim {
 }
 
 sub base64 {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     require MIME::Base64;
     MIME::Base64::decode_base64(shift);
 }
 
 sub escape {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     my $text = shift;
     $text =~ s/(\\.)/eval "qq{$1}"/ge;
     return $text;
 }
 
 sub eval {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     my @return = CORE::eval(shift);
     return $@ if $@;
     return @return;
 }
 
 sub yaml {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     require YAML;
     return YAML::Load(shift);
 }
 
 sub lines {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     my $text = shift;
     return () unless length $text;
     my @lines = ($text =~ /^(.*\n?)/gm);
@@ -414,6 +414,10 @@ sub lines {
 
 sub array {
     [@_];
+}
+
+sub join {
+    CORE::join '', @_;
 }
 
 sub dumper {
@@ -426,7 +430,7 @@ sub dumper {
 }
 
 sub strict {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     <<'...' . shift;
 use strict;
 use warnings;
@@ -434,7 +438,7 @@ use warnings;
 }
 
 sub regexp {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     my $text = shift;
     my $flags = $Test::Chunks::Filter::arguments;
     if ($text =~ /\n.*?\n/s) {
@@ -451,7 +455,7 @@ sub regexp {
 }
 
 sub get_url {
-    $self->_assert_scalar(@_);
+    $self->assert_scalar(@_);
     my $url = shift;
     CORE::chomp($url);
     require LWP::Simple;
@@ -522,14 +526,14 @@ exports a few more functions though:
 =head2 chunks( [data-section-name] )
 
 The most important function is C<chunks>. In list context it returns a
-list of C<Test::Chunk> objects that are generated from the test
+list of C<Test::Chunks::Chunk> objects that are generated from the test
 specification in the C<DATA> section of your test file. In scalar
 context it returns the number of objects. This is useful to calculate
 your Test::More plan.
 
-Each Test::Chunk object has methods that correspond to the names of that
-object's data sections. There is also a C<description> method for
-accessing the description text of the object.
+Each Test::Chunks::Chunk object has methods that correspond to the names
+of that object's data sections. There is also a C<description> method
+for accessing the description text of the object.
 
 C<chunks> can take an optional single argument, that indicates to only
 return the chunks that contain a particular named data section.
@@ -612,14 +616,6 @@ ref of filters for that data type.
     };
 
 If a filters list has only one element, the array ref is optional.
-
-=cut
-
-# =head2 diff_is()
-# 
-# Like Test::More's C<is()>, but on failure reports a diff of the expected
-# and actual output. This is often very useful when your chunks are large.
-# Requires the Algorithm::Diff module.
 
 =head2 default_object()
 
@@ -709,7 +705,7 @@ filters as well.
 Test::Chunks allows you to specify a list of filters. The default
 filters are C<norm> and C<trim>. These filters will be applied (in
 order) to the data after it has been parsed from the specification and
-before it is set into its Test::Chunk object.
+before it is set into its Test::Chunks::Chunk object.
 
 You can add to the the default filter list with the C<filters> function.
 You can specify additional filters to a specific chunk by listing them
@@ -801,6 +797,12 @@ newline at the end.
 list => scalar
 
 Turn a list of values into an anonymous array reference.
+
+=head2 join
+
+list => scalar
+
+Join a list of strings into a scalar.
 
 =head2 eval
 
@@ -899,7 +901,7 @@ hood everything is object oriented. A default Test::Chunks object is
 created and all the functions are really just method calls on it.
 
 This means if you need to get fancy, you can use all the object
-oriented stuff too. Just create new Test::Chunk objects and use the
+oriented stuff too. Just create new Test::Chunks objects and use the
 functions as methods.
 
     use Test::Chunks;
@@ -912,6 +914,46 @@ functions as methods.
     plan tests => $chunks1->chunks + $chunks2->chunks;
 
     # ... etc
+
+=head1 SUBCLASSING
+
+One of the nicest things about Test::Chunks is that it is easy to
+subclass. This is very important, because in your personal project, you
+will likely want to extend Test::Chunks with your own filters and other
+reusable pieces of your test framework.
+
+Here is a example of a subclass:
+
+    package MyTestStuff;
+    use Test::Chunks -Base;
+
+    our @EXPORT = qw(some_func);
+
+    const chunk_class => 'MyTestStuff::Chunk';
+    const filter_class => 'MyTestStuff::Filter';
+
+    sub some_func {
+        (my $self), @_ = find_my_self(@_);
+        ...
+    }
+
+    package MyTestStuff::Chunk;
+    use base 'Test::Chunks::Chunk';
+
+    sub desc {
+        $self->description(@_);
+    }
+
+    package MyTestStuff::Filter;
+    use base 'Test::Chunks::Filter';
+
+    sub upper {
+        $self->assert_scalar(@_);
+        uc(shift);
+    }
+
+Note that you don't have to re-Export all the functions from
+Test::Chunks. That happens automatically, due to the powers of Spiffy.
 
 =head1 OTHER COOL FEATURES
 

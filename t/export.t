@@ -1,6 +1,6 @@
 use Test::Chunks;
 
-plan 'no_plan';
+plan tests => 36;
 
 ok(defined &plan);
 ok(defined &ok);
@@ -31,8 +31,14 @@ ok(defined &run);
 ok(defined &run_is);
 ok(defined &run_like);
 ok(not defined &diff_is);
+ok(defined &default_object);
 
 ok(defined &WWW);
 ok(defined &XXX);
 ok(defined &YYY);
 ok(defined &ZZZ);
+
+ok(defined &croak);
+ok(defined &carp);
+# ok(defined &cluck);
+ok(defined &confess);

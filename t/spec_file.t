@@ -7,7 +7,7 @@ plan tests => 3 * chunks;
 
 run {
     my $chunk = shift;
-    is(ref($chunk), 'Test::Chunk');
+    is(ref($chunk), 'Test::Chunks::Chunk');
 };
 
 my @chunks = chunks;

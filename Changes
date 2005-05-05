@@ -1,4 +1,11 @@
 ---
+version: 0.23
+date:    Thu May  5 00:33:32 PDT 2005
+changes:
+- Make Test::Chunks more subclassable
+- Add join filter
+- General Refactorings
+---
 version: 0.22
 date:    Tue May  3 12:32:39 PDT 2005
 changes:
