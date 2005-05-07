@@ -1,5 +1,5 @@
 name: Test-Chunks
-version: 0.24
+version: 0.25
 abstract: Chunky Data Driven Testing Framework
 author: Brian Ingerson <ingy@cpan.org>
 license: perl

@@ -14,7 +14,7 @@ else {
 
 run {
     my $chunk = shift;
-    is_deeply($chunk->data1, $chunk->data2, $chunk->description);
+    is_deeply($chunk->data1, $chunk->data2, $chunk->name);
 };
 
 __END__

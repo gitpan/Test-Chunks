@@ -7,7 +7,7 @@ plan tests => 3 * $chunks->chunks;
 
 $chunks->run(sub {
     my $chunk = shift;
-    is($chunk->foo, $chunk->bar, $chunk->description);
+    is($chunk->foo, $chunk->bar, $chunk->name);
 });
 
 $chunks->run_is('foo', 'bar');

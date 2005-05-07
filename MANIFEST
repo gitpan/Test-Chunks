@@ -29,9 +29,11 @@ t/filter_functions.t
 t/filters.t
 t/filters_map.t
 t/get_url.t
+t/last.t
 t/late.t
 t/lines.t
 t/list.t
+t/name.t
 t/normalize.t
 t/only.t
 t/oo.t
@@ -47,6 +49,8 @@ t/spec1
 t/spec2
 t/spec_file.t
 t/spec_string.t
+t/strict-warnings.t
+t/strict-warnings.test
 t/strict.t
 t/subclass.t
 t/subclass_late.t

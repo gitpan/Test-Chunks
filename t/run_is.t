@@ -7,9 +7,9 @@ run_is 'bar', 'baz';
 run_is 'baz', 'foo';
 
 for my $chunk (chunks) {
-    is($chunk->foo, $chunk->bar, $chunk->description);
-    is($chunk->bar, $chunk->baz, $chunk->description);
-    is($chunk->baz, $chunk->foo, $chunk->description);
+    is($chunk->foo, $chunk->bar, $chunk->name);
+    is($chunk->bar, $chunk->baz, $chunk->name);
+    is($chunk->baz, $chunk->foo, $chunk->name);
 }
 
 my @chunks = chunks;

@@ -15,7 +15,7 @@ sub run_like_hell() {
 package TestChunkier::Chunk;
 use base 'Test::Chunks::Chunk';
 
-sub el_descripto { $self->description(@_) }
+sub el_nombre { $self->name(@_) }
 
 chunk_accessor 'feedle';
 

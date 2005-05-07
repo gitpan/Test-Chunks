@@ -10,7 +10,7 @@ my @chunks = chunks;
 
 is(ref(default_object), 'TestChunkier');
 
-is($chunks[0]->el_descripto, 'Test One');
+is($chunks[0]->el_nombre, 'Test One');
 
 ok($chunks[0]->can('feedle'), 'Does feedle method exist?');
 

@@ -20,7 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.24';
+our $VERSION = '0.25';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
@@ -86,9 +86,9 @@ sub chunks() {
         return @$chunks;
     }
     elsif (@_ == 1) {
-        my $name = shift;
+        my $section_name = shift;
         my @chunks = grep {
-            exists $_->{$name};
+            exists $_->{$section_name};
         } @$chunks;
         return @chunks;
     }
@@ -155,7 +155,7 @@ sub run_is() {
     for my $chunk ($self->chunks) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
         is($chunk->$x, $chunk->$y, 
-           $chunk->description ? $chunk->description : ()
+           $chunk->name ? $chunk->name : ()
           );
     }
 }
@@ -166,7 +166,7 @@ sub run_is_deeply() {
     for my $chunk ($self->chunks) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
         is_deeply($chunk->$x, $chunk->$y, 
-           $chunk->description ? $chunk->description : ()
+           $chunk->name ? $chunk->name : ()
           );
     }
 }
@@ -178,7 +178,7 @@ sub run_like() {
         my $regexp = ref $y ? $y : $chunk->$y;
         next unless exists($chunk->{$x}) and defined($y);
         like($chunk->$x, $regexp,
-             $chunk->description ? $chunk->description : ()
+             $chunk->name ? $chunk->name : ()
             );
     }
 }
@@ -194,19 +194,22 @@ sub _chunks_init {
           if defined $chunk->{ONLY};
         next if defined $chunk->{SKIP};
         push @chunks, $chunk;
+        last if $chunk->{LAST};
     }
     return [@chunks];
 }
 
 sub _check_reserved {
-    my $name = shift;
-    croak "'$name' is a reserved name. Use something else.\n"
-      if $name =~ /^(
+    my $id = shift;
+    croak "'$id' is a reserved name. Use something else.\n"
+      if $id =~ /^(
          new |
          chunk_accessor |
-         description
+         name |
+         description |
+         set_value
       )$/x or
-      $name =~ /^_/;
+      $id =~ /^_/;
 }
 
 sub _make_chunk {
@@ -215,9 +218,15 @@ sub _make_chunk {
     my $dd = $self->data_delim;
     my $chunk = $self->chunk_class->new;
     $hunk =~ s/\A\Q${cd}\E[ \t]*(.*)\s+// or die;
-    my $description = $1;
+    my $name = $1;
     my @parts = split /^\Q${dd}\E +(\w+) *(.*)?\n/m, $hunk;
-    shift @parts;
+    my $description = shift @parts;
+    $description ||= '';
+    unless ($description =~ /\S/) {
+        $description = $name;
+    }
+    chomp($description);
+    $chunk->set_value(description => $description);
     while (@parts) {
         my ($type, $filters, @value) = splice(@parts, 0, 3);
         @value = ('') unless @value > 0;
@@ -237,12 +246,12 @@ sub _make_chunk {
                 die "Can't find a function or method for '$filter' filter\n";
             }
         }
-        $chunk->_set_value($type, @value);
+        $chunk->set_value($type, @value);
     }
     for (keys %$chunk) {
         $chunk->{$_} ||= '';
     }
-    $chunk->_set_value(description => $description);
+    $chunk->set_value(name => $name);
     return $chunk;
 }
 
@@ -319,28 +328,29 @@ use Spiffy -base;
 our @EXPORT = qw(chunk_accessor);
 
 sub chunk_accessor() {
-    my $name = shift;
+    my $accessor = shift;
     no strict 'refs';
-    return if defined &$name;
-    *$name = sub {
+    return if defined &$accessor;
+    *$accessor = sub {
         my $self = shift;
         if (@_) {
-            Carp::croak "Not allowed to set values for '$name'";
+            Carp::croak "Not allowed to set values for '$accessor'";
         }
-        my @list = @{$self->{$name}};
+        my @list = @{$self->{$accessor}};
         return wantarray
         ? (@list)
         : $list[0];
     };
 }
 
+chunk_accessor 'name';
 chunk_accessor 'description';
 
-sub _set_value {
-    my $name = shift;
-    chunk_accessor $name
-      unless $self->can($name);
-    $self->{$name} = [@_];
+sub set_value {
+    my $accessor = shift;
+    chunk_accessor $accessor
+      unless $self->can($accessor);
+    $self->{$accessor} = [@_];
 }
 
 package Test::Chunks::Filter;
@@ -479,17 +489,22 @@ Test::Chunks - Chunky Data Driven Testing Support
         is(
             Pod::Simple::pod_to_html($chunk->pod),
             $chunk->text,
-            $chunk->description, 
+            $chunk->name, 
         );
     }
 
     __END__
 
     === Header 1 Test
+    
+    This is an optional description
+    of this particular test.
+
     +++ pod
     =head1 The Main Event
     +++ html
     <h1>The Main Event</h1>
+
 
     === List Test
     +++ pod
@@ -529,8 +544,9 @@ context it returns the number of objects. This is useful to calculate
 your Test::More plan.
 
 Each Test::Chunks::Chunk object has methods that correspond to the names
-of that object's data sections. There is also a C<description> method
-for accessing the description text of the object.
+of that object's data sections. There is also a C<name> and a
+C<description> method for accessing those parts of the chunk if they
+were specified.
 
 C<chunks> can take an optional single argument, that indicates to only
 return the chunks that contain a particular named data section.
@@ -553,7 +569,7 @@ chunk object to the subroutine.
 
     run {
         my $chunk = shift;
-        is(process($chunk->foo), $chunk->bar, $chunk->description);
+        is(process($chunk->foo), $chunk->bar, $chunk->name);
     };
 
 =head2 run_is(data_name1, data_name2)
@@ -633,8 +649,10 @@ all the text input.
 
 A I<test specification> is a series of text lines. Each test (or chunk)
 is separated by a line containing the chunk delimiter and an optional
-C<description>. Each chunk is further subdivided into named sections
-with a line containing the data delimiter and the data section name.
+test C<name>. Each chunk is further subdivided into named sections with
+a line containing the data delimiter and the data section name. A
+C<description> of the test can go on lines after the chunk delimiter but
+before the first data section.
 
 Here is an example:
 
@@ -647,7 +665,8 @@ Here is an example:
     __END__
     
     ### Test One
-    
+    We want to see if foo and bar
+    are really the same... 
     ::: foo
     a foo line
     another foo line
@@ -677,17 +696,21 @@ C<###> and the data delimiter is C<:::>.
 The default chunk delimiter is C<===> and the default data delimiter
 is C<--->.
 
-There are two special data section names.
+There are some special data section names used for control purposes:
 
     --- SKIP
     --- ONLY
+    --- LAST
 
 A chunk with a SKIP section causes that test to be ignored. This is
 useful to disable a test temporarily.
 
-A chunk with an ONLY section causes only that chunk to be return. This
-is useful when you are concentrating on getting a single test to pass.
-If there is more than one chunk with ONLY, the first one will be chosen.
+A chunk with an ONLY section causes only that chunk to be used. This is
+useful when you are concentrating on getting a single test to pass. If
+there is more than one chunk with ONLY, the first one will be chosen.
+
+A chunk with a LAST section makes that chunk the last one in the
+specification. All following chunks will be ignored.
 
 =head1 FILTERS
 
@@ -768,18 +791,18 @@ scalar => scalar
 
 Normalize the data. Change non-Unix line endings to Unix line endings.
 
-=head2 chomp
-
-list => list
-
-Remove the final newline from each string value in a list.
-
 =head2 trim
 
 list => list
 
 Remove extra blank lines from the beginning and end of the data. This
 allows you to visually separate your test data with blank lines.
+
+=head2 chomp
+
+list => list
+
+Remove the final newline from each string value in a list.
 
 =head2 lines
 

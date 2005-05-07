@@ -1,48 +1,20 @@
 use Test::Chunks;
 
-plan tests => 5;
+plan tests => 6;
+
+for my $word (qw(new chunk_accessor description name _this)) {
+    my $chunks = Test::Chunks->new->spec_string(<<"...");
+=== Fail test
+--- $word
+This is a test
+--- foo
+This is a test
+...
+    eval {$chunks->chunks};
+    like($@, qr{'$word' is a reserved name});
+}
 
 my $chunks = Test::Chunks->new->spec_string(<<'...');
-=== Fail test
---- new
-This is a test
---- foo
-This is a test
-...
-eval {$chunks->chunks};
-like($@, qr{'new' is a reserved name});
-
-$chunks = Test::Chunks->new->spec_string(<<'...');
-=== Fail test
---- chunk_accessor
-This is a test
---- foo
-This is a test
-...
-eval {$chunks->chunks};
-like($@, qr{'chunk_accessor' is a reserved name});
-
-$chunks = Test::Chunks->new->spec_string(<<'...');
-=== Fail test
---- description
-This is a test
---- foo
-This is a test
-...
-eval {$chunks->chunks};
-like($@, qr{'description' is a reserved name});
-
-$chunks = Test::Chunks->new->spec_string(<<'...');
-=== Fail test
---- _this
-This is a test
---- foo
-This is a test
-...
-eval {$chunks->chunks};
-like($@, qr{'_this' is a reserved name});
-
-$chunks = Test::Chunks->new->spec_string(<<'...');
 === Fail test
 --- bar
 This is a test

@@ -1,4 +1,12 @@
 ---
+version: 0.25
+date:    
+changes:
+- Add `LAST` special section name to stop at a certain test.
+- Add test for strict/warnings filter.
+- Change 'description' method to 'name'.
+- Add a description method for the multiline description.
+---
 version: 0.24
 date:    Thu May  5 01:54:29 PDT 2005
 changes:

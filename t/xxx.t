@@ -12,7 +12,7 @@ my ($chunk) = chunks;
 eval {
     XXX($chunk->text)
 };
-is $@, $chunk->xxx, $chunk->description;
+is $@, $chunk->xxx, $chunk->name;
 
 __DATA__
 === XXX Test

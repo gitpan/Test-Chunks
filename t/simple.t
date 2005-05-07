@@ -7,7 +7,7 @@ for my $chunk (chunks) {
     is(
         uc($chunk->pod),
         $chunk->upper,
-        $chunk->description, 
+        $chunk->name, 
     );
 }
 
