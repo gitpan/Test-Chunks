@@ -22,6 +22,7 @@ t/description.t
 t/diff_is.t
 t/dos_spec
 t/dumper.t
+t/embed_perl.t
 t/escape.t
 t/eval.t
 t/export.t

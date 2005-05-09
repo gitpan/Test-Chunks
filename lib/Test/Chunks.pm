@@ -20,7 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.25';
+our $VERSION = '0.26';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
@@ -183,8 +183,19 @@ sub run_like() {
     }
 }
 
+sub _pre_eval {
+    my $spec = shift;
+    return $spec unless $spec =~
+      s/\A\s*<<<(.*?)>>>\s*$//sm;
+    my $eval_code = $1;
+    eval "package main; $eval_code";
+    croak $@ if $@;
+    return $spec;
+}
+
 sub _chunks_init {
     my $spec = $self->spec;
+    $spec = $self->_pre_eval($spec);
     my $cd = $self->chunk_delim;
     my @hunks = ($spec =~ /^(\Q${cd}\E.*?(?=^\Q${cd}\E|\z))/msg);
     my @chunks;

@@ -1,4 +1,10 @@
 ---
+version: 0.26
+date:    Mon May  9 07:57:58 PDT 2005
+changes:
+- Embed perl code in a test specification. This is still experimental and
+  undocumented.
+---
 version: 0.25
 date:    
 changes:
