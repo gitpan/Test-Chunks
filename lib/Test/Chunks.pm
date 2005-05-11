@@ -12,7 +12,7 @@ our @EXPORT = qw(
     $TODO
 
     chunks delimiters spec_file spec_string filters filters_map 
-    run run_is run_is_deeply run_like
+    run run_is run_is_deeply run_like run_unlike
     WWW XXX YYY ZZZ
 
     find_my_self default_object
@@ -20,7 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.26';
+our $VERSION = '0.27';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
@@ -180,6 +180,18 @@ sub run_like() {
         like($chunk->$x, $regexp,
              $chunk->name ? $chunk->name : ()
             );
+    }
+}
+
+sub run_unlike() {
+    (my ($self), @_) = find_my_self(@_);
+    my ($x, $y) = @_;
+    for my $chunk ($self->chunks) {
+        my $regexp = ref $y ? $y : $chunk->$y;
+        next unless exists($chunk->{$x}) and defined($y);
+        unlike($chunk->$x, $regexp,
+               $chunk->name ? $chunk->name : ()
+              );
     }
 }
 
@@ -609,6 +621,13 @@ expression.
 
     run_like 'foo', qr{<html.*};
     run_like 'foo', 'match';
+
+=head2 run_unlike(data_name, regexp | data_name);
+
+The C<run_unlike> function is similar to C<run_like>, except the opposite.
+
+    run_unlike 'foo', qr{<html.*};
+    run_unlike 'foo', 'no_match';
 
 =head2 delimiters($chunk_delimiter, $data_delimiter)
 

@@ -117,6 +117,12 @@ EXPORTED FUNCTIONS
         run_like 'foo', qr{<html.*};
         run_like 'foo', 'match';
 
+  run_unlike(data_name, regexp | data_name);
+    The "run_unlike" function is similar to "run_like", except the opposite.
+
+        run_unlike 'foo', qr{<html.*};
+        run_unlike 'foo', 'no_match';
+
   delimiters($chunk_delimiter, $data_delimiter)
     Override the default delimiters of "===" and "---".
 

@@ -44,6 +44,7 @@ t/reserved_names.t
 t/run_is.t
 t/run_is_deeply.t
 t/run_like.t
+t/run_unlike.t
 t/simple.t
 t/skip.t
 t/spec1
