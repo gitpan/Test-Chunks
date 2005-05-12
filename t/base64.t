@@ -4,18 +4,22 @@ plan tests => 1 * chunks;
 
 run {
     my $chunk = shift;
-    is($chunk->encoded, $chunk->decoded);
+    is($chunk->encoded, $chunk->decoded, $chunk->name);
 };
 
 __END__
-
 === Test One
-
 --- encoded base64
 SSBMb3ZlIEx1Y3kK
 
 --- decoded
 I Love Lucy
+
+
+
+
+
+
 
 === Test Two
 

@@ -20,7 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.27';
+our $VERSION = '0.28';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
@@ -210,16 +210,25 @@ sub _chunks_init {
     $spec = $self->_pre_eval($spec);
     my $cd = $self->chunk_delim;
     my @hunks = ($spec =~ /^(\Q${cd}\E.*?(?=^\Q${cd}\E|\z))/msg);
-    my @chunks;
-    for my $hunk (@hunks) {
+    my $chunks = $self->_choose_chunks(@hunks);
+    $self->_apply_filters($chunks);
+    return $chunks;
+}
+
+sub _choose_chunks {
+    my $chunks = [];
+    for my $hunk (@_) {
         my $chunk = $self->_make_chunk($hunk);
-        return [$chunk]
-          if defined $chunk->{ONLY};
-        next if defined $chunk->{SKIP};
-        push @chunks, $chunk;
-        last if $chunk->{LAST};
+        if (exists $chunk->{ONLY}) {
+            return [$chunk];
+        }
+        next if exists $chunk->{SKIP};
+        push @$chunks, $chunk;
+        if (exists $chunk->{LAST}) {
+            return $chunks;
+        }
     }
-    return [@chunks];
+    return $chunks;
 }
 
 sub _check_reserved {
@@ -250,32 +259,48 @@ sub _make_chunk {
     }
     chomp($description);
     $chunk->set_value(description => $description);
+    
+    my $section_map = {};
     while (@parts) {
-        my ($type, $filters, @value) = splice(@parts, 0, 3);
-        @value = ('') unless @value > 0;
+        my ($type, $filters, $value) = splice(@parts, 0, 3);
         $self->_check_reserved($type);
-        for my $filter ($self->_get_filters($type, $filters)) {
-            $Test::Chunks::Filter::arguments =
-              $filter =~ s/=(.*)$// ? $1 : undef;
-            my $function = "main::$filter";
-            no strict 'refs';
-            if (defined &$function) {
-                @value = &$function(@value);
-            }
-            elsif ($self->filter_class->can($filter)) {
-                @value = $self->filter_class->$filter(@value);
-            }
-            else {
-                die "Can't find a function or method for '$filter' filter\n";
-            }
-        }
-        $chunk->set_value($type, @value);
-    }
-    for (keys %$chunk) {
-        $chunk->{$_} ||= '';
+        $value = '' unless defined $value;
+        $section_map->{$type} = {
+            filters => $filters,
+            value => $value,
+        };
+        $chunk->set_value($type, '');
     }
     $chunk->set_value(name => $name);
+    $chunk->set_value(_section_map => $section_map);
     return $chunk;
+}
+
+sub _apply_filters {
+    my $chunks = shift;
+    for my $chunk (@$chunks) {
+        my $map = $chunk->_section_map;
+        for my $type (keys %$map) {
+            my $filters = $map->{$type}{filters};
+            my @value = $map->{$type}{value};
+            for my $filter ($self->_get_filters($type, $filters)) {
+                $Test::Chunks::Filter::arguments =
+                  $filter =~ s/=(.*)$// ? $1 : undef;
+                my $function = "main::$filter";
+                no strict 'refs';
+                if (defined &$function) {
+                    @value = &$function(@value);
+                }
+                elsif ($self->filter_class->can($filter)) {
+                    @value = $self->filter_class->$filter(@value);
+                }
+                else {
+                    die "Can't find a function or method for '$filter' filter\n";
+                }
+            }
+            $chunk->set_value($type, @value);
+        }
+    }
 }
 
 sub _get_filters {

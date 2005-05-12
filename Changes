@@ -1,4 +1,10 @@
 ---
+version: 0.28
+date:    Wed May 11 17:13:19 PDT 2005
+changes:
+- Make running of the filters be lazy to avoid undesired side effects when not
+  running all tests. May want to be even lazier in the future...
+---
 version: 0.27
 date:    Tue May 10 17:01:18 PDT 2005
 changes:
