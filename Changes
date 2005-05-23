@@ -1,4 +1,13 @@
 ---
+version: 0.29
+date:    Sun May 22 21:30:02 PDT 2005
+changes:
+- add filters_delay function
+- add run_filters method to Test::Chunks::Chunk
+- Refactor many methods into Test::Chunks::Chunk
+- Expose internals to the filter methods by providing a `chunk` method to the
+  Filter object.
+---
 version: 0.28
 date:    Wed May 11 17:13:19 PDT 2005
 changes:

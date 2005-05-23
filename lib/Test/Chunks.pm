@@ -11,8 +11,8 @@ our @EXPORT = qw(
     plan can_ok isa_ok diag
     $TODO
 
-    chunks delimiters spec_file spec_string filters filters_map 
-    run run_is run_is_deeply run_like run_unlike
+    chunks delimiters spec_file spec_string filters filters_delay
+    run run_is run_is_deeply run_like run_unlike 
     WWW XXX YYY ZZZ
 
     find_my_self default_object
@@ -20,29 +20,31 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.28';
+our $VERSION = '0.29';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
 
 field '_spec_file';
 field '_spec_string';
-field '_filters' => [qw(norm trim)];
-field '_filters_map' => {};
+field _filters => [qw(norm trim)];
+field _filters_map => {};
 field spec =>
       -init => '$self->_spec_init';
-field chunks_list =>
-      -init => '$self->_chunks_init';
+field chunk_list =>
+      -init => '$self->_chunk_list_init';
 field chunk_delim =>
       -init => '$self->chunk_delim_default';
 field data_delim =>
       -init => '$self->data_delim_default';
+field _filters_delay => 0;
 
 field chunk_delim_default => '===';
 field data_delim_default => '---';
 
 my $default_class;
 my $default_object;
+my $reserved_section_names = {};
 
 sub default_object { 
     $default_object ||= $default_class->new;
@@ -65,7 +67,7 @@ sub import() {
 }
 
 sub check_late {
-    if ($self->{chunks_list}) {
+    if ($self->{chunk_list}) {
         my $caller = (caller(1))[3];
         $caller =~ s/.*:://;
         croak "Too late to call $caller()"
@@ -81,7 +83,7 @@ sub find_my_self() {
 
 sub chunks() {
     (my ($self), @_) = find_my_self(@_);
-    my $chunks = $self->chunks_list;
+    my $chunks = $self->chunk_list;
     if (@_ == 0) {
         return @$chunks;
     }
@@ -95,6 +97,12 @@ sub chunks() {
     else {
         croak "Invalid arguments passed to 'chunks'";
     }
+}
+
+sub filters_delay() {
+    (my ($self), @_) = find_my_self(@_);
+    $self->check_late;
+    $self->_filters_delay(defined $_[0] ? shift : 1);
 }
 
 sub delimiters() {
@@ -135,12 +143,6 @@ sub filters() {
     return $self;
 }
 
-sub filters_map() {
-    croak <<'...';
-The 'filters_map' function has been deprecated. Use 'filters' instead.
-...
-}
-
 sub run(&) {
     (my ($self), @_) = find_my_self(@_);
     my $callback = shift;
@@ -154,6 +156,7 @@ sub run_is() {
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
+        $chunk->run_filters unless $chunk->is_filtered;
         is($chunk->$x, $chunk->$y, 
            $chunk->name ? $chunk->name : ()
           );
@@ -165,6 +168,7 @@ sub run_is_deeply() {
     my ($x, $y) = @_;
     for my $chunk ($self->chunks) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
+        $chunk->run_filters unless $chunk->is_filtered;
         is_deeply($chunk->$x, $chunk->$y, 
            $chunk->name ? $chunk->name : ()
           );
@@ -177,6 +181,7 @@ sub run_like() {
     for my $chunk ($self->chunks) {
         my $regexp = ref $y ? $y : $chunk->$y;
         next unless exists($chunk->{$x}) and defined($y);
+        $chunk->run_filters unless $chunk->is_filtered;
         like($chunk->$x, $regexp,
              $chunk->name ? $chunk->name : ()
             );
@@ -189,6 +194,7 @@ sub run_unlike() {
     for my $chunk ($self->chunks) {
         my $regexp = ref $y ? $y : $chunk->$y;
         next unless exists($chunk->{$x}) and defined($y);
+        $chunk->run_filters unless $chunk->is_filtered;
         unlike($chunk->$x, $regexp,
                $chunk->name ? $chunk->name : ()
               );
@@ -205,13 +211,20 @@ sub _pre_eval {
     return $spec;
 }
 
-sub _chunks_init {
+sub _chunk_list_init {
     my $spec = $self->spec;
     $spec = $self->_pre_eval($spec);
     my $cd = $self->chunk_delim;
     my @hunks = ($spec =~ /^(\Q${cd}\E.*?(?=^\Q${cd}\E|\z))/msg);
     my $chunks = $self->_choose_chunks(@hunks);
-    $self->_apply_filters($chunks);
+    $self->chunk_list($chunks); # Need to set early for possible filter use
+    my $seq = 1;
+    for my $chunk (@$chunks) {
+        $chunk->chunks_object($self);
+        $chunk->seq_num($seq++);
+        $chunk->run_filters
+          unless $self->_filters_delay;
+    }
     return $chunks;
 }
 
@@ -234,14 +247,8 @@ sub _choose_chunks {
 sub _check_reserved {
     my $id = shift;
     croak "'$id' is a reserved name. Use something else.\n"
-      if $id =~ /^(
-         new |
-         chunk_accessor |
-         name |
-         description |
-         set_value
-      )$/x or
-      $id =~ /^_/;
+      if $reserved_section_names->{$id} or
+         $id =~ /^_/;
 }
 
 sub _make_chunk {
@@ -257,7 +264,7 @@ sub _make_chunk {
     unless ($description =~ /\S/) {
         $description = $name;
     }
-    chomp($description);
+    $description =~ s/\s*\z//;
     $chunk->set_value(description => $description);
     
     my $section_map = {};
@@ -267,64 +274,12 @@ sub _make_chunk {
         $value = '' unless defined $value;
         $section_map->{$type} = {
             filters => $filters,
-            value => $value,
         };
-        $chunk->set_value($type, '');
+        $chunk->set_value($type, $value);
     }
     $chunk->set_value(name => $name);
     $chunk->set_value(_section_map => $section_map);
     return $chunk;
-}
-
-sub _apply_filters {
-    my $chunks = shift;
-    for my $chunk (@$chunks) {
-        my $map = $chunk->_section_map;
-        for my $type (keys %$map) {
-            my $filters = $map->{$type}{filters};
-            my @value = $map->{$type}{value};
-            for my $filter ($self->_get_filters($type, $filters)) {
-                $Test::Chunks::Filter::arguments =
-                  $filter =~ s/=(.*)$// ? $1 : undef;
-                my $function = "main::$filter";
-                no strict 'refs';
-                if (defined &$function) {
-                    @value = &$function(@value);
-                }
-                elsif ($self->filter_class->can($filter)) {
-                    @value = $self->filter_class->$filter(@value);
-                }
-                else {
-                    die "Can't find a function or method for '$filter' filter\n";
-                }
-            }
-            $chunk->set_value($type, @value);
-        }
-    }
-}
-
-sub _get_filters {
-    my $type = shift;
-    my $string = shift || '';
-    $string =~ s/\s*(.*?)\s*/$1/;
-    my @filters = ();
-    my $map_filters = $self->_filters_map->{$type} || [];
-    $map_filters = [ $map_filters ] unless ref $map_filters;
-    for my $filter (
-        @{$self->_filters}, 
-        @$map_filters,
-        split(/\s+/, $string),
-    ) {
-        last unless length $filter;
-        if ($filter =~ s/^-//) {
-            @filters = grep { $_ ne $filter } @filters;
-        }
-        else {
-            @filters = grep { $_ ne $filter } @filters;
-            push @filters, $filter;
-        }
-    }
-    return @filters;
 }
 
 sub _spec_init {
@@ -370,8 +325,13 @@ sub _strict_warnings() {
     );
 }
 
+#===============================================================================
+# Test::Chunks::Chunk
+#
+# This is the default class for accessing a Test::Chunks chunk object.
+#===============================================================================
 package Test::Chunks::Chunk;
-use Spiffy -base;
+our @ISA = qw(Spiffy);
 
 our @EXPORT = qw(chunk_accessor);
 
@@ -393,15 +353,91 @@ sub chunk_accessor() {
 
 chunk_accessor 'name';
 chunk_accessor 'description';
+Spiffy::field 'seq_num';
+Spiffy::field 'is_filtered';
+Spiffy::field 'chunks_object';
+Spiffy::field 'original_values' => {};
 
 sub set_value {
+    no strict 'refs';
     my $accessor = shift;
     chunk_accessor $accessor
-      unless $self->can($accessor);
+      unless defined &$accessor;
     $self->{$accessor} = [@_];
 }
 
+sub run_filters {
+    my $map = $self->_section_map;
+    Carp::croak "Attempt to filter a chunk twice"
+      if $self->is_filtered;
+    # XXX Preserve section order for filtering... (instead of sort)
+    for my $type (reverse sort keys %$map) {
+        my $filters = $map->{$type}{filters};
+        my @value = $self->$type;
+        $self->original_values->{$type} = $value[0];
+        for my $filter ($self->_get_filters($type, $filters)) {
+            $Test::Chunks::Filter::arguments =
+              $filter =~ s/=(.*)$// ? $1 : undef;
+            my $function = "main::$filter";
+            no strict 'refs';
+            if (defined &$function) {
+                @value = &$function(@value);
+            }
+            else {
+                my $filter_object = $self->chunks_object->filter_class->new;
+                die "Can't find a function or method for '$filter' filter\n"
+                  unless $filter_object->can($filter);
+                $filter_object->chunk($self);
+                @value = $filter_object->$filter(@value);
+            }
+            # Set the value after each filter since other filters may be
+            # introspecting.
+            $self->set_value($type, @value);
+        }
+    }
+    $self->is_filtered(1);
+}
+
+sub _get_filters {
+    my $type = shift;
+    my $string = shift || '';
+    $string =~ s/\s*(.*?)\s*/$1/;
+    my @filters = ();
+    my $map_filters = $self->chunks_object->_filters_map->{$type} || [];
+    $map_filters = [ $map_filters ] unless ref $map_filters;
+    for my $filter (
+        @{$self->chunks_object->_filters}, 
+        @$map_filters,
+        split(/\s+/, $string),
+    ) {
+        last unless length $filter;
+        if ($filter =~ s/^-//) {
+            @filters = grep { $_ ne $filter } @filters;
+        }
+        else {
+            @filters = grep { $_ ne $filter } @filters;
+            push @filters, $filter;
+        }
+    }
+    return @filters;
+}
+
+{
+    %$reserved_section_names = map {
+        ($_, 1);
+    } keys(%Test::Chunks::Chunk::), qw( new DESTROY );
+#     Spiffy::XXX $reserved_section_names;
+}
+
+#===============================================================================
+# Test::Chunks::Filter
+#
+# This is the default class for handling Test::Chunks data filtering.
+#===============================================================================
 package Test::Chunks::Filter;
+use Spiffy -base;
+
+field 'chunk';
 
 our $arguments;
 
@@ -521,7 +557,7 @@ __DATA__
 
 =head1 NAME
 
-Test::Chunks - Chunky Data Driven Testing Support
+Test::Chunks - Chunky Data Driven Testing Framework
 
 =head1 SYNOPSIS
 
@@ -573,9 +609,6 @@ There are many testing situations where you have a set of inputs and a
 set of expected outputs and you want to make sure your process turns
 each input chunk into the corresponding output chunk. Test::Chunks
 allows you do this with a minimal amount of code.
-
-Test::Chunks is optimized for input and output chunks that span multiple
-lines of text.
 
 =head1 EXPORTED FUNCTIONS
 
@@ -630,7 +663,7 @@ comparing the two sections.
 
     run_is 'foo', 'bar';
 
-NOTE: Test::Chunks will silently ignore any chunks that  don't contain both
+NOTE: Test::Chunks will silently ignore any chunks that don't contain both
 sections.
 
 =head2 run_is_deeply(data_name1, data_name2)
@@ -685,6 +718,28 @@ ref of filters for that data type.
 
 If a filters list has only one element, the array ref is optional.
 
+=head2 filters_delay( [1 | 0] );
+
+By default Test::Chunks::Chunk objects are have all their filters run
+ahead of time. There are testing situations in which it is advantageous
+to delay the filtering. Calling this function with no arguments or a
+true value, causes the filtering to be delayed.
+
+    use Test::Chunks;
+    filters_delay;
+    plan tests => 1 * chunks;
+    for my $chunk (@chunks) {
+        ...
+        $chunk->run_filters;
+        ok($chunk->is_filtered);
+        ...
+    }
+
+In the code above, the filters are called manually, using the
+C<run_filters> method of Test::Chunks::Chunk. In functions like
+C<run_is>, where the tests are run automatically, filtering is delayed
+until right before the test.
+
 =head2 default_object()
 
 Returns the default Test::Chunks object. This is useful if you feel
@@ -709,7 +764,27 @@ a line containing the data delimiter and the data section name. A
 C<description> of the test can go on lines after the chunk delimiter but
 before the first data section.
 
-Here is an example:
+Here is the basic layout of a specification:
+
+    === <chunk name 1>
+    <optional chunk description lines>
+    --- <data section name 1> <filter-1> <filter-2> <filter-n>
+    <test data lines>
+    --- <data section name 2> <filter-1> <filter-2> <filter-n>
+    <test data lines>
+    --- <data section name n> <filter-1> <filter-2> <filter-n>
+    <test data lines>
+
+    === <chunk name 2>
+    <optional chunk description lines>
+    --- <data section name 1> <filter-1> <filter-2> <filter-n>
+    <test data lines>
+    --- <data section name 2> <filter-1> <filter-2> <filter-n>
+    <test data lines>
+    --- <data section name n> <filter-1> <filter-2> <filter-n>
+    <test data lines>
+
+Here is a code example:
 
     use Test::Chunks;
     
@@ -959,12 +1034,16 @@ Here is a self explanatory example:
     }
         
     sub Test::Chunks::Filter::bar {
-        my $class = shift;
+        my $self = shift;
+        my $current_chunk_object = $self->chunk;
         my $data = shift;
         my $args = shift;
         # transform $data in a barish manner
         return $data;
-    }    
+    }
+
+If you use the method interface for a filter, you can access the chunk
+internals by calling the C<chunk> method on the filter object.
 
 Normally you'll probably just use the functional interface, although all
 the builtin filters are methods.
@@ -990,6 +1069,43 @@ functions as methods.
 
     # ... etc
 
+=head1 THE C<Test::Chunks::Chunk> CLASS
+
+In Test::Chunks, chunks are exposed as Test::Chunks::Chunk objects. This
+section lists the methods that can be called on a Test::Chunks::Chunk
+object. Of course, each data section name is also available as a method.
+
+=head2 name()
+
+This is the optional short description of a chunk, that is specified on the
+chunk separator line.
+
+=head2 description()
+
+This is an optional long description of the chunk. It is the text taken from
+between the chunk separator and the first data section.
+
+=head2 seq_num()
+
+Returns a sequence number for this chunk. Sequence numbers begin with 1. 
+
+=head2 chunks_object()
+
+Returns the Test::Chunks object that owns this chunk.
+
+=head2 run_filters()
+
+Run the filters on the data sections of the chunks. You don't need to
+use this method unless you also used the C<filters_delay> function.
+
+=head2 is_filtered()
+
+Returns true if filters have already been run for this chunk.
+
+=head2 original_values()
+
+Returns a hash of the original, unfiltered values of each data section.
+
 =head1 SUBCLASSING
 
 One of the nicest things about Test::Chunks is that it is easy to
@@ -997,7 +1113,7 @@ subclass. This is very important, because in your personal project, you
 will likely want to extend Test::Chunks with your own filters and other
 reusable pieces of your test framework.
 
-Here is a example of a subclass:
+Here is an example of a subclass:
 
     package MyTestStuff;
     use Test::Chunks -Base;

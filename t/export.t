@@ -1,6 +1,6 @@
 use Test::Chunks;
 
-plan tests => 36;
+plan tests => 37;
 
 ok(defined &plan);
 ok(defined &ok);
@@ -26,7 +26,8 @@ ok(defined &delimiters);
 ok(defined &spec_file);
 ok(defined &spec_string);
 ok(defined &filters);
-ok(defined &filters_map);
+ok(not defined &filters_map);
+ok(defined &filters_delay);
 ok(defined &run);
 ok(defined &run_is);
 ok(defined &run_like);

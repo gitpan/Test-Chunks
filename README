@@ -1,5 +1,5 @@
 NAME
-    Test::Chunks - Chunky Data Driven Testing Support
+    Test::Chunks - Chunky Data Driven Testing Framework
 
 SYNOPSIS
         use Test::Chunks;
@@ -48,9 +48,6 @@ DESCRIPTION
     set of expected outputs and you want to make sure your process turns
     each input chunk into the corresponding output chunk. Test::Chunks
     allows you do this with a minimal amount of code.
-
-    Test::Chunks is optimized for input and output chunks that span multiple
-    lines of text.
 
 EXPORTED FUNCTIONS
     Test::Chunks extends Test::More and exports all of its functions. So you
@@ -150,6 +147,27 @@ EXPORTED FUNCTIONS
 
     If a filters list has only one element, the array ref is optional.
 
+  filters_delay( [1 | 0] );
+    By default Test::Chunks::Chunk objects are have all their filters run
+    ahead of time. There are testing situations in which it is advantageous
+    to delay the filtering. Calling this function with no arguments or a
+    true value, causes the filtering to be delayed.
+
+        use Test::Chunks;
+        filters_delay;
+        plan tests => 1 * chunks;
+        for my $chunk (@chunks) {
+            ...
+            $chunk->run_filters;
+            ok($chunk->is_filtered);
+            ...
+        }
+
+    In the code above, the filters are called manually, using the
+    "run_filters" method of Test::Chunks::Chunk. In functions like "run_is",
+    where the tests are run automatically, filtering is delayed until right
+    before the test.
+
   default_object()
     Returns the default Test::Chunks object. This is useful if you feel the
     need to do an OO operation in otherwise functional test code. See OO
@@ -171,7 +189,27 @@ TEST SPECIFICATION
     "description" of the test can go on lines after the chunk delimiter but
     before the first data section.
 
-    Here is an example:
+    Here is the basic layout of a specification:
+
+        === <chunk name 1>
+        <optional chunk description lines>
+        --- <data section name 1> <filter-1> <filter-2> <filter-n>
+        <test data lines>
+        --- <data section name 2> <filter-1> <filter-2> <filter-n>
+        <test data lines>
+        --- <data section name n> <filter-1> <filter-2> <filter-n>
+        <test data lines>
+
+        === <chunk name 2>
+        <optional chunk description lines>
+        --- <data section name 1> <filter-1> <filter-2> <filter-n>
+        <test data lines>
+        --- <data section name 2> <filter-1> <filter-2> <filter-n>
+        <test data lines>
+        --- <data section name n> <filter-1> <filter-2> <filter-n>
+        <test data lines>
+
+    Here is a code example:
 
         use Test::Chunks;
     
@@ -403,12 +441,16 @@ FILTERS
         }
         
         sub Test::Chunks::Filter::bar {
-            my $class = shift;
+            my $self = shift;
+            my $current_chunk_object = $self->chunk;
             my $data = shift;
             my $args = shift;
             # transform $data in a barish manner
             return $data;
-        }    
+        }
+
+    If you use the method interface for a filter, you can access the chunk
+    internals by calling the "chunk" method on the filter object.
 
     Normally you'll probably just use the functional interface, although all
     the builtin filters are methods.
@@ -433,13 +475,42 @@ OO
 
         # ... etc
 
+THE "Test::Chunks::Chunk" CLASS
+    In Test::Chunks, chunks are exposed as Test::Chunks::Chunk objects. This
+    section lists the methods that can be called on a Test::Chunks::Chunk
+    object. Of course, each data section name is also available as a method.
+
+  name()
+    This is the optional short description of a chunk, that is specified on
+    the chunk separator line.
+
+  description()
+    This is an optional long description of the chunk. It is the text taken
+    from between the chunk separator and the first data section.
+
+  seq_num()
+    Returns a sequence number for this chunk. Sequence numbers begin with 1.
+
+  chunks_object()
+    Returns the Test::Chunks object that owns this chunk.
+
+  run_filters()
+    Run the filters on the data sections of the chunks. You don't need to
+    use this method unless you also used the "filters_delay" function.
+
+  is_filtered()
+    Returns true if filters have already been run for this chunk.
+
+  original_values()
+    Returns a hash of the original, unfiltered values of each data section.
+
 SUBCLASSING
     One of the nicest things about Test::Chunks is that it is easy to
     subclass. This is very important, because in your personal project, you
     will likely want to extend Test::Chunks with your own filters and other
     reusable pieces of your test framework.
 
-    Here is a example of a subclass:
+    Here is an example of a subclass:
 
         package MyTestStuff;
         use Test::Chunks -Base;

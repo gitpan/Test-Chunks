@@ -8,7 +8,7 @@ filters_map {
     text => ['chomp', 'lines', 'array'],
 };
 };
-like($@, qr{The 'filters_map' function has been deprecated.});
+like($@, qr{Can't locate object method "filters_map"});
 
 filters {
     perl => ['eval'],
