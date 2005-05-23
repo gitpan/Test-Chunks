@@ -15,6 +15,7 @@ README
 t/array.t
 t/base64.t
 t/chomp.t
+t/chunks-scalar.t
 t/chunks_grep.t
 t/compile.t
 t/delimiters.t
@@ -63,3 +64,4 @@ t/TestChunkier.pm
 t/trim.t
 t/xxx.t
 t/yaml.t
+t/zero-chunks.t

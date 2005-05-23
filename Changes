@@ -1,4 +1,10 @@
 ---
+version: 0.30
+date:    Mon May 23 16:39:23 PDT 2005
+changes:
+- Further delay filtering by no running filters when chunks is called in 
+  scalar context.
+---
 version: 0.29
 date:    Sun May 22 21:30:02 PDT 2005
 changes:

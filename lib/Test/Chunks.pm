@@ -20,7 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.29';
+our $VERSION = '0.30';
 
 field chunk_class => 'Test::Chunks::Chunk';
 field filter_class => 'Test::Chunks::Filter';
@@ -66,6 +66,8 @@ sub import() {
     goto &Spiffy::import;
 }
 
+# XXX With recent refactorings to delay filtering, some operations may no
+# longer be too late. Need to review and possibly refactor.
 sub check_late {
     if ($self->{chunk_list}) {
         my $caller = (caller(1))[3];
@@ -83,20 +85,29 @@ sub find_my_self() {
 
 sub chunks() {
     (my ($self), @_) = find_my_self(@_);
+
+    croak "Invalid arguments passed to 'chunks'"
+      if @_ > 1;
+    croak sprintf("'%s' is invalid argument to chunks()", shift(@_))
+      if @_ && $_[0] !~ /^[a-zA-Z]\w*$/;
+
     my $chunks = $self->chunk_list;
-    if (@_ == 0) {
-        return @$chunks;
+    
+    my $section_name = shift || '';
+    my @chunks = $section_name
+    ? (grep { exists $_->{$section_name} } @$chunks)
+    : (@$chunks);
+
+    return scalar(@chunks) unless wantarray;
+    
+    return (@chunks) if $self->_filters_delay;
+
+    for my $chunk (@chunks) {
+        $chunk->run_filters
+          unless $chunk->is_filtered;
     }
-    elsif (@_ == 1) {
-        my $section_name = shift;
-        my @chunks = grep {
-            exists $_->{$section_name};
-        } @$chunks;
-        return @chunks;
-    }
-    else {
-        croak "Invalid arguments passed to 'chunks'";
-    }
+
+    return (@chunks);
 }
 
 sub filters_delay() {
@@ -154,7 +165,7 @@ sub run(&) {
 sub run_is() {
     (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
-    for my $chunk ($self->chunks) {
+    for my $chunk (@{$self->chunk_list}) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
         $chunk->run_filters unless $chunk->is_filtered;
         is($chunk->$x, $chunk->$y, 
@@ -166,7 +177,7 @@ sub run_is() {
 sub run_is_deeply() {
     (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
-    for my $chunk ($self->chunks) {
+    for my $chunk (@{$self->chunk_list}) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
         $chunk->run_filters unless $chunk->is_filtered;
         is_deeply($chunk->$x, $chunk->$y, 
@@ -178,10 +189,10 @@ sub run_is_deeply() {
 sub run_like() {
     (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
-    for my $chunk ($self->chunks) {
-        my $regexp = ref $y ? $y : $chunk->$y;
+    for my $chunk (@{$self->chunk_list}) {
         next unless exists($chunk->{$x}) and defined($y);
         $chunk->run_filters unless $chunk->is_filtered;
+        my $regexp = ref $y ? $y : $chunk->$y;
         like($chunk->$x, $regexp,
              $chunk->name ? $chunk->name : ()
             );
@@ -191,10 +202,10 @@ sub run_like() {
 sub run_unlike() {
     (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
-    for my $chunk ($self->chunks) {
-        my $regexp = ref $y ? $y : $chunk->$y;
+    for my $chunk (@{$self->chunk_list}) {
         next unless exists($chunk->{$x}) and defined($y);
         $chunk->run_filters unless $chunk->is_filtered;
+        my $regexp = ref $y ? $y : $chunk->$y;
         unlike($chunk->$x, $regexp,
                $chunk->name ? $chunk->name : ()
               );
@@ -222,8 +233,6 @@ sub _chunk_list_init {
     for my $chunk (@$chunks) {
         $chunk->chunks_object($self);
         $chunk->seq_num($seq++);
-        $chunk->run_filters
-          unless $self->_filters_delay;
     }
     return $chunks;
 }
