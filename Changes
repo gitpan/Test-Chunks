@@ -1,4 +1,9 @@
 ---
+version: 0.31
+date:    Mon May 23 20:48:28 PDT 2005
+changes:
+- Guess names for chunk_class and filter_class. Easier subclassing.
+---
 version: 0.30
 date:    Mon May 23 16:39:23 PDT 2005
 changes:

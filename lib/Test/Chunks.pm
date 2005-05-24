@@ -20,10 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.30';
-
-field chunk_class => 'Test::Chunks::Chunk';
-field filter_class => 'Test::Chunks::Filter';
+our $VERSION = '0.31';
 
 field '_spec_file';
 field '_spec_string';
@@ -65,6 +62,9 @@ sub import() {
     _strict_warnings();
     goto &Spiffy::import;
 }
+
+sub chunk_class  { ref($self) . '::Chunk' }
+sub filter_class { ref($self) . '::Filter' }
 
 # XXX With recent refactorings to delay filtering, some operations may no
 # longer be too late. Need to review and possibly refactor.
@@ -1129,11 +1129,11 @@ Here is an example of a subclass:
 
     our @EXPORT = qw(some_func);
 
-    const chunk_class => 'MyTestStuff::Chunk';
-    const filter_class => 'MyTestStuff::Filter';
+    # const chunk_class => 'MyTestStuff::Chunk';
+    # const filter_class => 'MyTestStuff::Filter';
 
     sub some_func {
-        (my $self), @_ = find_my_self(@_);
+        (my ($self), @_) = find_my_self(@_);
         ...
     }
 
@@ -1154,6 +1154,12 @@ Here is an example of a subclass:
 
 Note that you don't have to re-Export all the functions from
 Test::Chunks. That happens automatically, due to the powers of Spiffy.
+
+You can set the C<chunk_class> and C<filter_class> to anything but they
+will nicely default as above.
+
+The first line in C<some_func> allows it to be called as either a
+function or a method in the test code.
 
 =head1 OTHER COOL FEATURES
 

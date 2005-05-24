@@ -58,6 +58,7 @@ t/spec_string.t
 t/strict-warnings.t
 t/strict-warnings.test
 t/strict.t
+t/subclass-autoclass.t
 t/subclass.t
 t/subclass_late.t
 t/TestChunkier.pm
