@@ -12,6 +12,7 @@ Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
+t/arguments.t
 t/array.t
 t/base64.t
 t/chomp.t
@@ -33,6 +34,7 @@ t/filters.t
 t/filters_map.t
 t/get_url.t
 t/internals.t
+t/jit-run.t
 t/last.t
 t/late.t
 t/lazy-filters.t
@@ -43,6 +45,7 @@ t/normalize.t
 t/only.t
 t/oo.t
 t/oo_run.t
+t/preserve-order.t
 t/regexp.t
 t/reserved_names.t
 t/run_is.t
@@ -63,6 +66,7 @@ t/subclass.t
 t/subclass_late.t
 t/TestChunkier.pm
 t/trim.t
+t/use-test-more.t
 t/xxx.t
 t/yaml.t
 t/zero-chunks.t

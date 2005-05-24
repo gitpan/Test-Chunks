@@ -413,10 +413,15 @@ FILTERS
 
     to the chunk's text.
 
-  base64
+  base64_decode
     scalar => scalar
 
     Decode base64 data. Useful for binary tests.
+
+  base64_encode
+    scalar => scalar
+
+    Encode base64 data. Useful for binary tests.
 
   escape
     scalar => scalar
@@ -442,9 +447,9 @@ FILTERS
         
         sub Test::Chunks::Filter::bar {
             my $self = shift;
-            my $current_chunk_object = $self->chunk;
             my $data = shift;
-            my $args = shift;
+            my $args = $self->arguments;
+            my $current_chunk_object = $self->chunk;
             # transform $data in a barish manner
             return $data;
         }

@@ -20,7 +20,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.31';
+our $VERSION = '0.32';
 
 field '_spec_file';
 field '_spec_string';
@@ -59,12 +59,28 @@ sub import() {
         croak "Can't use $class after using $default_class"
           unless $default_class->isa($class);
     }
+
+    if (@_ > 1 and not grep /^-base$/i, @_) {
+        my @args = @_;
+        shift @args;
+        Test::More->import(@args);
+    }
+    
     _strict_warnings();
     goto &Spiffy::import;
 }
 
-sub chunk_class  { ref($self) . '::Chunk' }
-sub filter_class { ref($self) . '::Filter' }
+sub chunk_class  { $self->find_class('Chunk') }
+sub filter_class { $self->find_class('Filter') }
+
+sub find_class {
+    my $suffix = shift;
+    my $class = ref($self) . "::$suffix";
+    return $class if $class->can('new');
+    $class = __PACKAGE__ . "::$suffix";
+    return $class if $class->can('new');
+    die "Can't find a class for $suffix";
+}
 
 # XXX With recent refactorings to delay filtering, some operations may no
 # longer be too late. Need to review and possibly refactor.
@@ -112,7 +128,7 @@ sub chunks() {
 
 sub filters_delay() {
     (my ($self), @_) = find_my_self(@_);
-    $self->check_late;
+    $self->check_late; # XXX check_late_for_filters
     $self->_filters_delay(defined $_[0] ? shift : 1);
 }
 
@@ -143,7 +159,7 @@ sub spec_string() {
 
 sub filters() {
     (my ($self), @_) = find_my_self(@_);
-    $self->check_late;
+    $self->check_late; # XXX check_late_for_filters
     if (ref($_[0]) eq 'HASH') {
         $self->_filters_map(shift);
     }
@@ -157,7 +173,8 @@ sub filters() {
 sub run(&) {
     (my ($self), @_) = find_my_self(@_);
     my $callback = shift;
-    for my $chunk ($self->chunks) {
+    for my $chunk (@{$self->chunk_list}) {
+        $chunk->run_filters unless $chunk->is_filtered;
         &{$callback}($chunk);
     }
 }
@@ -277,6 +294,7 @@ sub _make_chunk {
     $chunk->set_value(description => $description);
     
     my $section_map = {};
+    my $section_order = [];
     while (@parts) {
         my ($type, $filters, $value) = splice(@parts, 0, 3);
         $self->_check_reserved($type);
@@ -284,10 +302,12 @@ sub _make_chunk {
         $section_map->{$type} = {
             filters => $filters,
         };
+        push @$section_order, $type;
         $chunk->set_value($type, $value);
     }
     $chunk->set_value(name => $name);
     $chunk->set_value(_section_map => $section_map);
+    $chunk->set_value(_section_order => $section_order);
     return $chunk;
 }
 
@@ -377,10 +397,10 @@ sub set_value {
 
 sub run_filters {
     my $map = $self->_section_map;
+    my $order = $self->_section_order;
     Carp::croak "Attempt to filter a chunk twice"
       if $self->is_filtered;
-    # XXX Preserve section order for filtering... (instead of sort)
-    for my $type (reverse sort keys %$map) {
+    for my $type (@$order) {
         my $filters = $map->{$type}{filters};
         my @value = $self->$type;
         $self->original_values->{$type} = $value[0];
@@ -435,7 +455,6 @@ sub _get_filters {
     %$reserved_section_names = map {
         ($_, 1);
     } keys(%Test::Chunks::Chunk::), qw( new DESTROY );
-#     Spiffy::XXX $reserved_section_names;
 }
 
 #===============================================================================
@@ -449,6 +468,9 @@ use Spiffy -base;
 field 'chunk';
 
 our $arguments;
+sub arguments {
+    return $arguments;
+}
 
 sub assert_scalar {
     return if @_ == 1;
@@ -478,10 +500,16 @@ sub trim {
     } @_;
 }
 
-sub base64 {
+sub base64_decode {
     $self->assert_scalar(@_);
     require MIME::Base64;
     MIME::Base64::decode_base64(shift);
+}
+
+sub base64_encode {
+    $self->assert_scalar(@_);
+    require MIME::Base64;
+    MIME::Base64::encode_base64(shift);
 }
 
 sub escape {
@@ -1012,11 +1040,17 @@ Prepend the string:
 
 to the chunk's text.
 
-=head2 base64
+=head2 base64_decode
 
 scalar => scalar
 
 Decode base64 data. Useful for binary tests.
+
+=head2 base64_encode
+
+scalar => scalar
+
+Encode base64 data. Useful for binary tests.
 
 =head2 escape
 
@@ -1044,9 +1078,9 @@ Here is a self explanatory example:
         
     sub Test::Chunks::Filter::bar {
         my $self = shift;
-        my $current_chunk_object = $self->chunk;
         my $data = shift;
-        my $args = shift;
+        my $args = $self->arguments;
+        my $current_chunk_object = $self->chunk;
         # transform $data in a barish manner
         return $data;
     }

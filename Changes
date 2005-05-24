@@ -1,4 +1,15 @@
 ---
+version: 0.32
+date:    Tue May 24 08:03:57 PDT 2005
+changes:
+- Add a method to access filter arguments
+- Curry `use` args to Test::More
+- Change base64 filter to base64_decode base64_encode
+- Apply filter just before dispatch in run()
+- Apply filters in order
+- Default to Test::Chunks inline classes for subclassing modules (for
+  Filter and Chunks)
+---
 version: 0.31
 date:    Mon May 23 20:48:28 PDT 2005
 changes:

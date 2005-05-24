@@ -9,11 +9,10 @@ sub run_orama {
     pass('Testorama EXPORT ok');;
 }
 
-package Testorama::Chunk;
-use base 'Test::Chunks::Chunk';
+package Test::Chunks::Chunk;
 
 sub foofoo {
-    Test::More::pass('Testorama::Chunk ok');
+    Test::More::pass('Test::Chunks::Chunk ok');
 }
 
 package Testorama::Filter;

@@ -1,15 +1,12 @@
 use Test::Chunks;
 
-plan tests => 1 * chunks;
+plan tests => ~~chunks;
 
-run {
-    my $chunk = shift;
-    is($chunk->encoded, $chunk->decoded, $chunk->name);
-};
+run_is encoded => 'decoded';
 
 __END__
 === Test One
---- encoded base64
+--- encoded base64_decode
 SSBMb3ZlIEx1Y3kK
 
 --- decoded
@@ -23,12 +20,12 @@ I Love Lucy
 
 === Test Two
 
---- encoded base64
+--- encoded
 c3ViIHJ1bigmKSB7CiAgICBteSAkc2VsZiA9ICRkZWZhdWx0X29iamVjdDsKICAgIG15ICRjYWxs
 YmFjayA9IHNoaWZ0OwogICAgZm9yIG15ICRjaHVuayAoJHNlbGYtPmNodW5rcykgewogICAgICAg
 ICZ7JGNhbGxiYWNrfSgkY2h1bmspOwogICAgfQp9Cg==
 
---- decoded
+--- decoded base64_encode
 
 sub run(&) {
     my $self = $default_object;
