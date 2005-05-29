@@ -11,7 +11,8 @@ our @EXPORT = qw(
     plan can_ok isa_ok diag
     $TODO
 
-    chunks delimiters spec_file spec_string filters filters_delay
+    chunks next_chunk
+    delimiters spec_file spec_string filters filters_delay
     run run_is run_is_deeply run_like run_unlike 
     WWW XXX YYY ZZZ
 
@@ -20,7 +21,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 
 field '_spec_file';
 field '_spec_string';
@@ -30,6 +31,7 @@ field spec =>
       -init => '$self->_spec_init';
 field chunk_list =>
       -init => '$self->_chunk_list_init';
+field _next_list => [];
 field chunk_delim =>
       -init => '$self->chunk_delim_default';
 field data_delim =>
@@ -124,6 +126,20 @@ sub chunks() {
     }
 
     return (@chunks);
+}
+
+sub next_chunk() {
+    (my ($self), @_) = find_my_self(@_);
+    my $list = $self->_next_list;
+    if (@$list == 0) {
+        $list = [@{$self->chunk_list}, undef];
+        $self->_next_list($list);
+    }
+    my $chunk = shift @$list;
+    if (defined $chunk and not $chunk->is_filtered) {
+        $chunk->run_filters;
+    }
+    return $chunk;
 }
 
 sub filters_delay() {
@@ -673,6 +689,17 @@ Otherwise C<chunks> returns all chunks.
     my @all_of_my_chunks = chunks;
 
     my @just_the_foo_chunks = chunks('foo');
+
+=head2 next_chunk()
+
+You can use the next_chunk function to iterate over all the chunks.
+
+    while (my $chunk = next_chunk) {
+        ...
+    }
+
+It returns undef after all chunks have been iterated over. It can then
+be called again to reiterate.
 
 =head2 run(&subroutine)
 

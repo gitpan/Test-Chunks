@@ -41,6 +41,7 @@ t/lazy-filters.t
 t/lines.t
 t/list.t
 t/name.t
+t/next.t
 t/normalize.t
 t/only.t
 t/oo.t
@@ -62,6 +63,8 @@ t/strict-warnings.t
 t/strict-warnings.test
 t/strict.t
 t/subclass-autoclass.t
+t/subclass-import.t
+t/Subclass.pm
 t/subclass.t
 t/subclass_late.t
 t/TestChunkier.pm

@@ -74,6 +74,16 @@ EXPORTED FUNCTIONS
 
         my @just_the_foo_chunks = chunks('foo');
 
+  next_chunk()
+    You can use the next_chunk function to iterate over all the chunks.
+
+        while (my $chunk = next_chunk) {
+            ...
+        }
+
+    It returns undef after all chunks have been iterated over. It can then
+    be called again to reiterate.
+
   run(&subroutine)
     There are many ways to write your tests. You can reference each chunk
     individually or you can loop over all the chunks and perform a common
