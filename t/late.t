@@ -7,12 +7,12 @@ my @chunks = chunks;
 eval {
     filters('blah', 'blam');
 };
-like("$@", qr{^Too late to call filters\(\)});
+is("$@", "");
 
 eval {
     filters({foo => 'grate'});
 };
-like("$@", qr{^Too late to call filters\(\)});
+is("$@", "");
 
 eval {
     delimiters('***', '&&&');

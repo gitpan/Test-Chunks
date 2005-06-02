@@ -21,7 +21,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.33';
+our $VERSION = '0.34';
 
 field '_spec_file';
 field '_spec_string';
@@ -84,8 +84,6 @@ sub find_class {
     die "Can't find a class for $suffix";
 }
 
-# XXX With recent refactorings to delay filtering, some operations may no
-# longer be too late. Need to review and possibly refactor.
 sub check_late {
     if ($self->{chunk_list}) {
         my $caller = (caller(1))[3];
@@ -144,7 +142,6 @@ sub next_chunk() {
 
 sub filters_delay() {
     (my ($self), @_) = find_my_self(@_);
-    $self->check_late; # XXX check_late_for_filters
     $self->_filters_delay(defined $_[0] ? shift : 1);
 }
 
@@ -175,7 +172,6 @@ sub spec_string() {
 
 sub filters() {
     (my ($self), @_) = find_my_self(@_);
-    $self->check_late; # XXX check_late_for_filters
     if (ref($_[0]) eq 'HASH') {
         $self->_filters_map(shift);
     }
@@ -450,6 +446,7 @@ sub _get_filters {
     my @filters = ();
     my $map_filters = $self->chunks_object->_filters_map->{$type} || [];
     $map_filters = [ $map_filters ] unless ref $map_filters;
+    my @append = ();
     for my $filter (
         @{$self->chunks_object->_filters}, 
         @$map_filters,
@@ -459,12 +456,15 @@ sub _get_filters {
         if ($filter =~ s/^-//) {
             @filters = grep { $_ ne $filter } @filters;
         }
+        elsif ($filter =~ s/^\+//) {
+            push @append, $filter;
+        }
         else {
             @filters = grep { $_ ne $filter } @filters;
             push @filters, $filter;
         }
     }
-    return @filters;
+    return @filters, @append;
 }
 
 {

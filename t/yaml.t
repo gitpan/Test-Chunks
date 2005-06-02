@@ -1,21 +1,18 @@
 use Test::Chunks;
 
-if (eval("require YAML; 1")) {
-    filters {
-        data1 => 'yaml',
-        data2 => 'eval',
-    };
-    plan tests => 1 * chunks;
-}
-else {
+unless (eval("require YAML; 1")) {
     plan skip_all => "YAML.pm required for this test";
     exit 0;
 }
 
-run {
-    my $chunk = shift;
-    is_deeply($chunk->data1, $chunk->data2, $chunk->name);
+plan tests => 1 * chunks;
+
+filters {
+    data1 => 'yaml',
+    data2 => 'eval',
 };
+
+run_is_deeply 'data1', 'data2';
 
 __END__
 === YAML Hashes
@@ -27,6 +24,8 @@ bar: [ 1, 2, 3]
     foo => 'xxx',
     bar => [1,2,3],
 }
+
+
 === YAML Arrays
 --- data1
 - foo
@@ -38,6 +37,8 @@ bar: [ 1, 2, 3]
     'bar',
     { x => 'y' },
 ]
+
+
 === YAML Scalar
 --- data1
 --- |

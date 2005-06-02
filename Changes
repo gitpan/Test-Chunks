@@ -1,9 +1,14 @@
 ---
+version: 0.34
+date:    Sat May 28 23:55:49 PDT 2005
+changes:
+- Allow "late" call of `filters`.
+- Allow for appending filters that are predefined.
+---
 version: 0.33
-date:    Tue May 24 08:03:57 PDT 2005
+date:    Sat May 28 23:55:41 PDT 2005
 changes:
 - Support `next_chunk` iterator.
-
 ---
 version: 0.32
 date:    Tue May 24 08:03:57 PDT 2005

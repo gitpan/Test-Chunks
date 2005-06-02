@@ -30,6 +30,7 @@ t/eval.t
 t/export.t
 t/filter_delay.t
 t/filter_functions.t
+t/filters-append.t
 t/filters.t
 t/filters_map.t
 t/get_url.t
