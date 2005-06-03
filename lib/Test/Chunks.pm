@@ -21,7 +21,7 @@ our @EXPORT = qw(
     croak carp cluck confess
 );
 
-our $VERSION = '0.34';
+our $VERSION = '0.35';
 
 field '_spec_file';
 field '_spec_string';
@@ -447,11 +447,12 @@ sub _get_filters {
     my $map_filters = $self->chunks_object->_filters_map->{$type} || [];
     $map_filters = [ $map_filters ] unless ref $map_filters;
     my @append = ();
-    for my $filter (
+    for (
         @{$self->chunks_object->_filters}, 
         @$map_filters,
         split(/\s+/, $string),
     ) {
+        my $filter = $_;
         last unless length $filter;
         if ($filter =~ s/^-//) {
             @filters = grep { $_ ne $filter } @filters;

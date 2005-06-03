@@ -1,4 +1,9 @@
 ---
+version: 0.35
+date:    Thu Jun  2 17:46:30 PDT 2005
+changes:
+- Subtle filter bug fixed
+---
 version: 0.34
 date:    Sat May 28 23:55:49 PDT 2005
 changes:
