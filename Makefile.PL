@@ -2,7 +2,7 @@ use inc::Module::Install;
 
 name('Test-Chunks');
 author('Brian Ingerson <ingy@cpan.org>');
-abstract('Chunky Data Driven Testing Framework');
+abstract('A Data Driven Testing Framework');
 license('perl');
 version_from('lib/Test/Chunks.pm');
 

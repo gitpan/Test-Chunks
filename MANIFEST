@@ -12,10 +12,12 @@ Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
+t/append.t
 t/arguments.t
 t/array.t
 t/base64.t
 t/chomp.t
+t/chop.t
 t/chunks-scalar.t
 t/chunks_grep.t
 t/compile.t
@@ -27,6 +29,9 @@ t/dumper.t
 t/embed_perl.t
 t/escape.t
 t/eval.t
+t/eval_all.t
+t/eval_stderr.t
+t/eval_stdout.t
 t/export.t
 t/filter_delay.t
 t/filter_functions.t
@@ -36,6 +41,7 @@ t/filters_map.t
 t/get_url.t
 t/internals.t
 t/jit-run.t
+t/join.t
 t/last.t
 t/late.t
 t/lazy-filters.t
@@ -68,8 +74,11 @@ t/subclass-import.t
 t/Subclass.pm
 t/subclass.t
 t/subclass_late.t
+t/Test-Less/index.txt
 t/TestChunkier.pm
+t/tie_output.t
 t/trim.t
+t/unchomp.t
 t/use-test-more.t
 t/xxx.t
 t/yaml.t

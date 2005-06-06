@@ -1,5 +1,5 @@
 NAME
-    Test::Chunks - Chunky Data Driven Testing Framework
+    Test::Chunks - A Data Driven Testing Framework
 
 SYNOPSIS
         use Test::Chunks;
@@ -177,6 +177,16 @@ EXPORTED FUNCTIONS
     "run_filters" method of Test::Chunks::Chunk. In functions like "run_is",
     where the tests are run automatically, filtering is delayed until right
     before the test.
+
+  tie_output()
+    You can capture STDOUT and STDERR for operations with this function:
+
+        my $out = '';
+        tie_output(*STDOUT, $buffer);
+        print "Hey!\n";
+        print "Che!\n";
+        untie *STDOUT;
+        is($out, "Hey!\nChe!\n");
 
   default_object()
     Returns the default Test::Chunks object. This is useful if you feel the
@@ -363,6 +373,26 @@ FILTERS
 
     Remove the final newline from each string value in a list.
 
+  unchomp
+    list => list
+
+    Add a newline to each string value in a list.
+
+  chop
+    list => list
+
+    Remove the final char from each string value in a list.
+
+  append
+    list => list
+
+    Append a string to each element of a list.
+
+        --- numbers lines chomp append=-#\n join
+        one
+        two
+        three
+
   lines
     scalar => list
 
@@ -385,6 +415,29 @@ FILTERS
 
     Run Perl's "eval" command against the data and use the returned value as
     the data.
+
+  eval_stdout
+    scalar => scalar
+
+    Run Perl's "eval" command against the data and return the captured
+    STDOUT.
+
+  eval_stderr
+    scalar => scalar
+
+    Run Perl's "eval" command against the data and return the captured
+    STDERR.
+
+  eval_all
+    scalar => list
+
+    Run Perl's "eval" command against the data and return a list of 4
+    values:
+
+        1) The return value
+        2) The error in $@
+        3) Captured STDOUT
+        4) Captured STDERR
 
   regexp[=xism]
     scalar => scalar

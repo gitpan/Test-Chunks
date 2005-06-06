@@ -15,13 +15,14 @@ our @EXPORT = qw(
     delimiters spec_file spec_string filters filters_delay
     run run_is run_is_deeply run_like run_unlike 
     WWW XXX YYY ZZZ
+    tie_output
 
     find_my_self default_object
 
     croak carp cluck confess
 );
 
-our $VERSION = '0.35';
+our $VERSION = '0.36';
 
 field '_spec_file';
 field '_spec_string';
@@ -366,6 +367,23 @@ sub _strict_warnings() {
     );
 }
 
+sub tie_output() {
+    my $handle = shift;
+    die "No buffer to tie" unless @_;
+    tie $handle, 'Test::Chunks::Handle', $_[0];
+}
+
+package Test::Chunks::Handle;
+
+sub TIEHANDLE() {
+    my $class = shift;
+    bless \ $_[0], $class;
+}
+
+sub PRINT {
+    $$self .= $_ for @_;
+}
+
 #===============================================================================
 # Test::Chunks::Chunk
 #
@@ -385,7 +403,7 @@ sub chunk_accessor() {
         if (@_) {
             Carp::croak "Not allowed to set values for '$accessor'";
         }
-        my @list = @{$self->{$accessor}};
+        my @list = @{$self->{$accessor} || []};
         return wantarray
         ? (@list)
         : $list[0];
@@ -486,7 +504,10 @@ field 'chunk';
 
 our $arguments;
 sub arguments {
-    return $arguments;
+    return undef unless defined $arguments;
+    my $args = $arguments;
+    $args =~ s/(\\[a-z])/'"' . $1 . '"'/gee;
+    return $args;
 }
 
 sub assert_scalar {
@@ -507,6 +528,19 @@ sub norm {
 
 sub chomp {
     map { CORE::chomp; $_ } @_;
+}
+
+sub unchomp {
+    map { $_ . "\n" } @_;
+}
+
+sub chop {
+    map { CORE::chop; $_ } @_;
+}
+
+sub append {
+    my $suffix = $self->arguments;
+    map { $_ . $suffix } @_;
 }
 
 sub trim {
@@ -543,6 +577,39 @@ sub eval {
     return @return;
 }
 
+sub eval_stdout {
+    $self->assert_scalar(@_);
+    my $output = '';
+    Test::Chunks::tie_output(*STDOUT, $output);
+    CORE::eval(shift);
+    no warnings;
+    untie *STDOUT;
+    return $output;
+}
+
+sub eval_stderr {
+    $self->assert_scalar(@_);
+    my $output = '';
+    Test::Chunks::tie_output(*STDERR, $output);
+    CORE::eval(shift);
+    no warnings;
+    untie *STDERR;
+    return $output;
+}
+
+sub eval_all {
+    $self->assert_scalar(@_);
+    my $out = '';
+    my $err = '';
+    Test::Chunks::tie_output(*STDOUT, $out);
+    Test::Chunks::tie_output(*STDERR, $err);
+    my $return = CORE::eval(shift);
+    no warnings;
+    untie *STDOUT;
+    untie *STDERR;
+    return $return, $@, $out, $err;
+}
+
 sub yaml {
     $self->assert_scalar(@_);
     require YAML;
@@ -562,7 +629,9 @@ sub array {
 }
 
 sub join {
-    CORE::join '', @_;
+    my $string = $self->arguments;
+    $string = '' unless defined $string;
+    CORE::join $string, @_;
 }
 
 sub dumper {
@@ -585,7 +654,7 @@ use warnings;
 sub regexp {
     $self->assert_scalar(@_);
     my $text = shift;
-    my $flags = $Test::Chunks::Filter::arguments;
+    my $flags = $self->arguments;
     if ($text =~ /\n.*?\n/s) {
         $flags = 'xism'
           unless defined $flags;
@@ -611,7 +680,7 @@ __DATA__
 
 =head1 NAME
 
-Test::Chunks - Chunky Data Driven Testing Framework
+Test::Chunks - A Data Driven Testing Framework
 
 =head1 SYNOPSIS
 
@@ -804,6 +873,17 @@ In the code above, the filters are called manually, using the
 C<run_filters> method of Test::Chunks::Chunk. In functions like
 C<run_is>, where the tests are run automatically, filtering is delayed
 until right before the test.
+
+=head2 tie_output()
+
+You can capture STDOUT and STDERR for operations with this function:
+
+    my $out = '';
+    tie_output(*STDOUT, $buffer);
+    print "Hey!\n";
+    print "Che!\n";
+    untie *STDOUT;
+    is($out, "Hey!\nChe!\n");
 
 =head2 default_object()
 
@@ -999,6 +1079,29 @@ list => list
 
 Remove the final newline from each string value in a list.
 
+=head2 unchomp
+
+list => list
+
+Add a newline to each string value in a list.
+
+=head2 chop
+
+list => list
+
+Remove the final char from each string value in a list.
+
+=head2 append
+
+list => list
+
+Append a string to each element of a list.
+
+    --- numbers lines chomp append=-#\n join
+    one
+    two
+    three
+
 =head2 lines
 
 scalar => list
@@ -1025,6 +1128,32 @@ scalar => list
 
 Run Perl's C<eval> command against the data and use the returned value
 as the data.
+
+=head2 eval_stdout
+
+scalar => scalar
+
+Run Perl's C<eval> command against the data and return the
+captured STDOUT.
+
+=head2 eval_stderr
+
+scalar => scalar
+
+Run Perl's C<eval> command against the data and return the
+captured STDERR.
+
+=head2 eval_all
+
+scalar => list
+
+Run Perl's C<eval> command against the data and return a list of 4
+values:
+
+    1) The return value
+    2) The error in $@
+    3) Captured STDOUT
+    4) Captured STDERR
 
 =head2 regexp[=xism]
 
