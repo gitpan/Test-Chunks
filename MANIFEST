@@ -54,6 +54,7 @@ t/only.t
 t/oo.t
 t/oo_run.t
 t/preserve-order.t
+t/prototypes.t
 t/regexp.t
 t/reserved_names.t
 t/run_is.t

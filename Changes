@@ -1,4 +1,10 @@
 ---
+version: 0.37
+date:    Tue Jun  7 11:04:07 PDT 2005
+changes:
+- Implement rking style diff_is
+- Add filters: exec_perl_stdout
+---
 version: 0.36
 date:    Sun Jun  5 11:49:54 PDT 2005
 changes:

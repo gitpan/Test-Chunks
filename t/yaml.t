@@ -1,10 +1,7 @@
 use Test::Chunks;
 
-unless (eval("require YAML; 1")) {
-    plan skip_all => "YAML.pm required for this test";
-    exit 0;
-}
-
+eval { require YAML; 1 } or
+plan skip_all => 'Requires YAML';
 plan tests => 1 * chunks;
 
 filters {

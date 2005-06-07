@@ -454,6 +454,12 @@ FILTERS
     The text is chomped and considered to be a url. Then LWP::Simple::get is
     used to fetch the contents of the url.
 
+  exec_perl_stdout
+    list => scalar
+
+    Input Perl code is written to a temp file and run. STDOUT is captured
+    and returned.
+
   yaml
     scalar => list
 

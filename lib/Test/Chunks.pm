@@ -1,15 +1,21 @@
 package Test::Chunks;
 use Spiffy 0.24 -Base;
 use Spiffy ':XXX';
-use Test::More;
+my @test_more_exports;
+BEGIN {
+    @test_more_exports = qw(
+        ok isnt like unlike is_deeply cmp_ok
+        skip todo_skip pass fail
+        eq_array eq_hash eq_set
+        plan can_ok isa_ok diag
+        $TODO
+    );
+}
+use Test::More import => \@test_more_exports;
 use Carp;
 
-our @EXPORT = qw(
-    ok is isnt like unlike is_deeply cmp_ok
-    skip todo_skip pass fail
-    eq_array eq_hash eq_set
-    plan can_ok isa_ok diag
-    $TODO
+our @EXPORT = (@test_more_exports, qw(
+    is
 
     chunks next_chunk
     delimiters spec_file spec_string filters filters_delay
@@ -20,9 +26,9 @@ our @EXPORT = qw(
     find_my_self default_object
 
     croak carp cluck confess
-);
+));
 
-our $VERSION = '0.36';
+our $VERSION = '0.37';
 
 field '_spec_file';
 field '_spec_string';
@@ -66,7 +72,7 @@ sub import() {
     if (@_ > 1 and not grep /^-base$/i, @_) {
         my @args = @_;
         shift @args;
-        Test::More->import(@args);
+        Test::More->import(import => \@test_more_exports, @args);
     }
     
     _strict_warnings();
@@ -183,6 +189,27 @@ sub filters() {
     return $self;
 }
 
+sub have_text_diff {
+    eval { require Text::Diff; 1 };
+}
+
+sub is($$;$) {
+    (my ($self), @_) = find_my_self(@_);
+    my ($actual, $expected, $message) = @_;
+    local $Test::Builder::Level = $Test::Builder::Level + 1;
+    if ($ENV{TEST_SHOW_NO_DIFFS} or
+         $actual eq $expected or 
+         not($self->have_text_diff) or 
+         $expected !~ /\n./s
+    ) {
+        Test::More::is($actual, $expected, $message);
+    }
+    else {
+        ok $actual eq $expected,
+           $message . "\n" . Text::Diff::diff(\$actual, \$expected);
+    }
+}
+
 sub run(&) {
     (my ($self), @_) = find_my_self(@_);
     my $callback = shift;
@@ -195,6 +222,7 @@ sub run(&) {
 sub run_is() {
     (my ($self), @_) = find_my_self(@_);
     my ($x, $y) = @_;
+    local $Test::Builder::Level = $Test::Builder::Level + 1;
     for my $chunk (@{$self->chunk_list}) {
         next unless exists($chunk->{$x}) and exists($chunk->{$y});
         $chunk->run_filters unless $chunk->is_filtered;
@@ -608,6 +636,28 @@ sub eval_all {
     untie *STDOUT;
     untie *STDERR;
     return $return, $@, $out, $err;
+}
+
+sub exec_perl_stdout {
+    my $tmpfile = "/tmp/test-chunks-$$";
+    $self->_write_to($tmpfile, @_);
+    open my $execution, "$^X $tmpfile 2>&1 |"
+      or die "Couldn't open subprocess: $!\n";
+    local $/;
+    my $output = <$execution>;
+    close $execution;
+    unlink($tmpfile)
+      or die "Couldn't unlink $tmpfile: $!\n";
+    return $output;
+}
+
+sub _write_to {
+    my $filename = shift;
+    open my $script, ">$filename"
+      or die "Couldn't open $filename: $!\n";
+    print $script @_;
+    close $script
+      or die "Couldn't close $filename: $!\n";
 }
 
 sub yaml {
@@ -1171,6 +1221,13 @@ scalar => scalar
 
 The text is chomped and considered to be a url. Then LWP::Simple::get is
 used to fetch the contents of the url.
+
+=head2 exec_perl_stdout
+
+list => scalar
+
+Input Perl code is written to a temp file and run. STDOUT is captured and
+returned.
 
 =head2 yaml
 
