@@ -178,6 +178,19 @@ EXPORTED FUNCTIONS
     where the tests are run automatically, filtering is delayed until right
     before the test.
 
+  filter_arguments()
+    Return the arguments after the equals sign on a filter.
+
+        sub my_filter {
+            my $args = filter_arguments;
+            # is($args, 'whazzup');
+            ...
+        }
+
+        __DATA__
+        === A test
+        --- data my_filter=whazzup
+
   tie_output()
     You can capture STDOUT and STDERR for operations with this function:
 

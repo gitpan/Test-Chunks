@@ -18,7 +18,8 @@ our @EXPORT = (@test_more_exports, qw(
     is
 
     chunks next_chunk
-    delimiters spec_file spec_string filters filters_delay
+    delimiters spec_file spec_string 
+    filters filters_delay filter_arguments
     run run_is run_is_deeply run_like run_unlike 
     WWW XXX YYY ZZZ
     tie_output
@@ -28,7 +29,7 @@ our @EXPORT = (@test_more_exports, qw(
     croak carp cluck confess
 ));
 
-our $VERSION = '0.37';
+our $VERSION = '0.38';
 
 field '_spec_file';
 field '_spec_string';
@@ -189,24 +190,29 @@ sub filters() {
     return $self;
 }
 
+sub filter_arguments() {
+    $Test::Chunks::Filter::arguments;
+}
+
 sub have_text_diff {
     eval { require Text::Diff; 1 };
 }
 
 sub is($$;$) {
     (my ($self), @_) = find_my_self(@_);
-    my ($actual, $expected, $message) = @_;
+    my ($actual, $expected, $name) = @_;
     local $Test::Builder::Level = $Test::Builder::Level + 1;
     if ($ENV{TEST_SHOW_NO_DIFFS} or
          $actual eq $expected or 
          not($self->have_text_diff) or 
          $expected !~ /\n./s
     ) {
-        Test::More::is($actual, $expected, $message);
+        Test::More::is($actual, $expected, $name);
     }
     else {
+        $name = '' unless defined $name;
         ok $actual eq $expected,
-           $message . "\n" . Text::Diff::diff(\$actual, \$expected);
+           $name . "\n" . Text::Diff::diff(\$actual, \$expected);
     }
 }
 
@@ -468,7 +474,13 @@ sub run_filters {
             my $function = "main::$filter";
             no strict 'refs';
             if (defined &$function) {
+                $_ = join '', @value;
                 @value = &$function(@value);
+                if (not(@value) or 
+                    @value == 1 and $value[0] =~ /\A(\d+|)\z/
+                ) {
+                    @value = ($_);
+                }
             }
             else {
                 my $filter_object = $self->chunks_object->filter_class->new;
@@ -923,6 +935,20 @@ In the code above, the filters are called manually, using the
 C<run_filters> method of Test::Chunks::Chunk. In functions like
 C<run_is>, where the tests are run automatically, filtering is delayed
 until right before the test.
+
+=head2 filter_arguments()
+
+Return the arguments after the equals sign on a filter.
+
+    sub my_filter {
+        my $args = filter_arguments;
+        # is($args, 'whazzup');
+        ...
+    }
+
+    __DATA__
+    === A test
+    --- data my_filter=whazzup
 
 =head2 tie_output()
 

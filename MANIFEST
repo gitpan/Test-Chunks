@@ -33,6 +33,7 @@ t/eval_all.t
 t/eval_stderr.t
 t/eval_stdout.t
 t/export.t
+t/filter_arguments.t
 t/filter_delay.t
 t/filter_functions.t
 t/filters-append.t
@@ -47,6 +48,7 @@ t/late.t
 t/lazy-filters.t
 t/lines.t
 t/list.t
+t/main_filters.t
 t/name.t
 t/next.t
 t/normalize.t

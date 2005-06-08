@@ -19,9 +19,9 @@ filters 'chomp';
 
 +++ One
 *** x reverse
-123
+123*
 *** y
-321
+*321
 
 +++ Two
 *** x reverse
