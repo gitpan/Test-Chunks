@@ -1,4 +1,10 @@
 ---
+version: 0.39
+date:    Sun Jun 12 02:42:11 PDT 2005
+changes:
+- This is the last release of Test::Chunks. It has been deprecated for
+  Test::Base. (Test::Base is really just a rename.)
+---
 version: 0.38
 date:    Wed Jun  8 00:33:00 PDT 2005
 changes:

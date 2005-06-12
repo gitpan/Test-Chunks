@@ -1,6 +1,15 @@
 NAME
     Test::Chunks - A Data Driven Testing Framework
 
+DEPRECATED
+    NOTE - This module has been deprecated and replaced by Test::Base. This
+    is basically just a renaming of the module. Test::Chunks was not the
+    best name for this module. Please discontinue using Test::Chunks and
+    switch to Test::Base.
+
+    Helpful Hint: change all occurences of "chunk" to "block" in your test
+    code, and everything should work exactly the same.
+
 SYNOPSIS
         use Test::Chunks;
         use Pod::Simple;

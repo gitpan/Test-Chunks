@@ -29,7 +29,7 @@ our @EXPORT = (@test_more_exports, qw(
     croak carp cluck confess
 ));
 
-our $VERSION = '0.38';
+our $VERSION = '0.39';
 
 field '_spec_file';
 field '_spec_string';
@@ -743,6 +743,16 @@ __DATA__
 =head1 NAME
 
 Test::Chunks - A Data Driven Testing Framework
+
+=head1 DEPRECATED
+
+NOTE - This module has been deprecated and replaced by Test::Base. This
+is basically just a renaming of the module. Test::Chunks was not the
+best name for this module. Please discontinue using Test::Chunks and
+switch to Test::Base. 
+
+Helpful Hint: change all occurences of C<chunk> to C<block> in your test
+code, and everything should work exactly the same.
 
 =head1 SYNOPSIS
 
